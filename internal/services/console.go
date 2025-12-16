@@ -9,6 +9,7 @@ import (
 
 	"github.com/kubev2v/assisted-migration-agent/internal/config"
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
+	"github.com/kubev2v/assisted-migration-agent/internal/store"
 	"github.com/kubev2v/assisted-migration-agent/pkg/console"
 	"github.com/kubev2v/assisted-migration-agent/pkg/scheduler"
 )
@@ -22,27 +23,28 @@ type Console struct {
 	mu             sync.Mutex
 	client         *console.Client
 	close          chan any
+	store          *store.Store
 }
 
-func NewConnectedConsoleService(cfg config.Agent, s *scheduler.Scheduler, client *console.Client) *Console {
+func NewConnectedConsoleService(cfg config.Agent, s *scheduler.Scheduler, client *console.Client, st *store.Store) *Console {
 	defaultStatus := models.ConsoleStatus{
 		Current: models.ConsoleStatusDisconnected,
 		Target:  models.ConsoleStatusConnected,
 	}
-	c := newConsoleService(cfg, s, client, defaultStatus)
+	c := newConsoleService(cfg, s, client, defaultStatus, st)
 	go c.run()
 	return c
 }
 
-func NewConsoleService(cfg config.Agent, s *scheduler.Scheduler, client *console.Client) *Console {
+func NewConsoleService(cfg config.Agent, s *scheduler.Scheduler, client *console.Client, st *store.Store) *Console {
 	defaultStatus := models.ConsoleStatus{
 		Current: models.ConsoleStatusDisconnected,
 		Target:  models.ConsoleStatusDisconnected,
 	}
-	return newConsoleService(cfg, s, client, defaultStatus)
+	return newConsoleService(cfg, s, client, defaultStatus, st)
 }
 
-func newConsoleService(cfg config.Agent, s *scheduler.Scheduler, client *console.Client, defaultStatus models.ConsoleStatus) *Console {
+func newConsoleService(cfg config.Agent, s *scheduler.Scheduler, client *console.Client, defaultStatus models.ConsoleStatus, st *store.Store) *Console {
 	c := &Console{
 		updateInterval: cfg.UpdateInterval,
 		agentID:        cfg.ID,
@@ -51,8 +53,18 @@ func newConsoleService(cfg config.Agent, s *scheduler.Scheduler, client *console
 		status:         defaultStatus,
 		client:         client,
 		close:          make(chan any),
+		store:          st,
 	}
 	return c
+}
+
+// IsDataSharingAllowed checks if the user has allowed data sharing.
+func (c *Console) IsDataSharingAllowed(ctx context.Context) (bool, error) {
+	creds, err := c.store.Credentials().Get(ctx)
+	if err != nil {
+		return false, err
+	}
+	return creds.IsDataSharingAllowed, nil
 }
 
 func (c *Console) SetMode(mode models.AgentMode) {

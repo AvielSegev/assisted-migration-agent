@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
@@ -26,6 +27,8 @@ import (
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	"github.com/kubev2v/assisted-migration-agent/internal/server"
 	"github.com/kubev2v/assisted-migration-agent/internal/services"
+	"github.com/kubev2v/assisted-migration-agent/internal/store"
+	"github.com/kubev2v/assisted-migration-agent/internal/store/migrations"
 	"github.com/kubev2v/assisted-migration-agent/pkg/console"
 	"github.com/kubev2v/assisted-migration-agent/pkg/scheduler"
 )
@@ -57,6 +60,26 @@ func NewRunCommand(cfg *config.Configuration) *cobra.Command {
 			wg := sync.WaitGroup{}
 			wg.Add(1)
 
+			// init store
+			dbPath := filepath.Join(cfg.Agent.DataFolder, "agent.duckdb")
+			if cfg.Agent.DataFolder == "" {
+				dbPath = ":memory:"
+				zap.S().Warn("data-folder not set, using in-memory database (data will not persist)")
+			}
+			db, err := store.NewDB(dbPath)
+			if err != nil {
+				zap.S().Errorw("failed to initialize database", "error", err)
+				return err
+			}
+			s := store.NewStore(db)
+			defer s.Close()
+
+			if err := migrations.Run(ctx, db); err != nil {
+				zap.S().Errorw("failed to run migrations", "error", err)
+				return err
+			}
+			zap.S().Info("database initialized successfully")
+
 			// init scheduler
 			sched := scheduler.NewScheduler(cfg.Agent.NumWorkers)
 			defer sched.Close()
@@ -67,11 +90,11 @@ func NewRunCommand(cfg *config.Configuration) *cobra.Command {
 			// init services
 			var consoleSrv *services.Console
 			if models.AgentMode(cfg.Agent.Mode) == models.AgentModeConnected {
-				consoleSrv = services.NewConnectedConsoleService(cfg.Agent, sched, consoleClient)
+				consoleSrv = services.NewConnectedConsoleService(cfg.Agent, sched, consoleClient, s)
 			} else {
-				consoleSrv = services.NewConsoleService(cfg.Agent, sched, consoleClient)
+				consoleSrv = services.NewConsoleService(cfg.Agent, sched, consoleClient, s)
 			}
-			collectorSrv := services.NewCollectorService(sched)
+			collectorSrv := services.NewCollectorService(sched, s)
 
 			// init handlers
 			h := handlers.New(consoleSrv, collectorSrv)
