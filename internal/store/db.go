@@ -16,7 +16,7 @@ func NewDB(path string) (*sql.DB, error) {
 
 	// Verify connection works
 	if err := conn.Ping(); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 

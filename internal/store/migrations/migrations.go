@@ -73,7 +73,7 @@ func getAppliedVersions(ctx context.Context, db *sql.DB) (map[int]bool, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	applied := make(map[int]bool)
 	for rows.Next() {
@@ -127,11 +127,7 @@ func runMigration(ctx context.Context, db *sql.DB, file string, version int) err
 	if err != nil {
 		return fmt.Errorf("beginning transaction: %w", err)
 	}
-	defer func() {
-		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
-			zap.S().Warnf("rollback failed: %v", err)
-		}
-	}()
+	defer func() { _ = tx.Rollback() }()
 
 	// Execute migration SQL
 	if _, err := tx.ExecContext(ctx, string(content)); err != nil {

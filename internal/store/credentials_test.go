@@ -47,7 +47,7 @@ var _ = Describe("CredentialsStore", func() {
 
 	AfterEach(func() {
 		if db != nil {
-			db.Close()
+			_ = db.Close()
 		}
 	})
 

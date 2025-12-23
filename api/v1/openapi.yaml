@@ -122,16 +122,20 @@ components:
       type: object
       required:
         - status
+        - hasCredentials
       properties:
         status:
           type: string
           enum:
-            - idle
+            - ready
             - connecting
             - connected
             - collecting
             - collected
             - error
+        hasCredentials:
+          type: boolean
+          description: Whether vCenter credentials are configured
         error:
           type: string
           description: Error message when status is error

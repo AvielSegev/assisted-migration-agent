@@ -67,7 +67,7 @@ var _ = Describe("Console Service", func() {
 		sourceID = uuid.New().String()
 
 		sched = scheduler.NewScheduler(1)
-		collector = NewMockCollector(models.CollectorStatusWaitingForCredentials)
+		collector = NewMockCollector(models.CollectorStatusReady)
 
 		var err error
 		db, err = store.NewDB(":memory:")
@@ -459,7 +459,7 @@ var _ = Describe("Console Service", func() {
 			client, err := console.NewConsoleClient(server.URL, "")
 			Expect(err).NotTo(HaveOccurred())
 
-			// Collector status is WaitingForCredentials (set in BeforeEach)
+			// Collector status is Ready (set in BeforeEach)
 			collector.inventory = []byte(`{"vms": [{"name": "vm1"}]}`)
 
 			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)

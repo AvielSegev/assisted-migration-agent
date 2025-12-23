@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 
@@ -9,26 +10,24 @@ import (
 
 	v1 "github.com/kubev2v/assisted-migration-agent/api/v1"
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
+	"github.com/kubev2v/assisted-migration-agent/internal/services"
+	"github.com/kubev2v/assisted-migration-agent/internal/store"
 )
 
 // GetCollectorStatus returns the collector status
 // (GET /collector)
 func (h *Handler) GetCollectorStatus(c *gin.Context) {
-	// Check if credentials exist to determine status
-	exists, err := h.collector.HasCredentials(c.Request.Context())
-	if err != nil {
-		zap.S().Errorw("failed to check credentials existence", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get collector status"})
-		return
+	status := h.collector.GetStatus(c.Request.Context())
+
+	resp := v1.CollectorStatus{
+		Status:         mapStateToAPIStatus(status.State),
+		HasCredentials: status.HasCredentials,
+	}
+	if status.Error != "" {
+		resp.Error = &status.Error
 	}
 
-	// TODO: Get actual status from collector service based on credentials existence
-	// For now, always return idle until collector state machine is implemented
-	_ = exists
-
-	c.JSON(http.StatusOK, v1.CollectorStatus{
-		Status: v1.CollectorStatusStatusIdle,
-	})
+	c.JSON(http.StatusOK, resp)
 }
 
 // StartCollector starts inventory collection
@@ -53,45 +52,87 @@ func (h *Handler) StartCollector(c *gin.Context) {
 		return
 	}
 
-	// Save credentials via collector service
 	creds := &models.Credentials{
 		URL:      req.Url,
 		Username: req.Username,
 		Password: req.Password,
 	}
-	if err := h.collector.SaveCredentials(c.Request.Context(), creds); err != nil {
-		zap.S().Errorw("failed to save credentials", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save credentials"})
+
+	// Start collection (saves creds, verifies, starts async job)
+	if err := h.collector.Start(c.Request.Context(), creds); err != nil {
+		zap.S().Errorw("failed to start collector", "error", err)
+
+		if errors.Is(err, services.ErrCollectionInProgress) {
+			c.JSON(http.StatusConflict, gin.H{"error": "collection already in progress"})
+			return
+		}
+		if errors.Is(err, services.ErrInvalidCredentials) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid vCenter credentials"})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start collector"})
 		return
 	}
 
-	// TODO: Verify credentials with vCenter before starting collection
-	// TODO: Start async collection job via scheduler
-
+	// Return current state after starting
+	status := h.collector.GetStatus(c.Request.Context())
 	c.JSON(http.StatusAccepted, v1.CollectorStatus{
-		Status: v1.CollectorStatusStatusConnecting,
+		Status:         mapStateToAPIStatus(status.State),
+		HasCredentials: status.HasCredentials,
 	})
 }
 
 // GetInventory returns the collected inventory
 // (GET /collector/inventory)
 func (h *Handler) GetInventory(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"msg": "not implemented"})
-}
-
-// StopCollector stops the collection
-// (DELETE /collector)
-func (h *Handler) StopCollector(c *gin.Context) {
-	// Delete credentials via collector service
-	if err := h.collector.DeleteCredentials(c.Request.Context()); err != nil {
-		zap.S().Errorw("failed to delete credentials", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete credentials"})
+	inv, err := h.collector.GetInventory(c.Request.Context())
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "inventory not found"})
+			return
+		}
+		zap.S().Errorw("failed to get inventory", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get inventory"})
 		return
 	}
 
-	// TODO: Cancel any running collection job
+	// Return the raw inventory JSON data
+	c.Data(http.StatusOK, "application/json", inv.Data)
+}
 
+// StopCollector stops the collection but keeps credentials for retry
+// (DELETE /collector)
+func (h *Handler) StopCollector(c *gin.Context) {
+	if err := h.collector.Stop(c.Request.Context()); err != nil {
+		zap.S().Errorw("failed to stop collector", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to stop collector"})
+		return
+	}
+
+	status := h.collector.GetStatus(c.Request.Context())
 	c.JSON(http.StatusOK, v1.CollectorStatus{
-		Status: v1.CollectorStatusStatusIdle,
+		Status:         mapStateToAPIStatus(status.State),
+		HasCredentials: status.HasCredentials,
 	})
+}
+
+// mapStateToAPIStatus converts internal state to API status.
+func mapStateToAPIStatus(state models.CollectorState) v1.CollectorStatusStatus {
+	switch state {
+	case models.CollectorStateReady:
+		return v1.CollectorStatusStatusReady
+	case models.CollectorStateConnecting:
+		return v1.CollectorStatusStatusConnecting
+	case models.CollectorStateConnected:
+		return v1.CollectorStatusStatusConnected
+	case models.CollectorStateCollecting:
+		return v1.CollectorStatusStatusCollecting
+	case models.CollectorStateCollected:
+		return v1.CollectorStatusStatusCollected
+	case models.CollectorStateError:
+		return v1.CollectorStatusStatusError
+	default:
+		return v1.CollectorStatusStatusReady
+	}
 }

@@ -38,12 +38,12 @@ type ConsoleStatus struct {
 type CollectorStatusType string
 
 const (
-	CollectorStatusWaitingForCredentials CollectorStatusType = "waiting-for-credentials"
-	CollectorStatusConnecting            CollectorStatusType = "connecting"
-	CollectorStatusConnected             CollectorStatusType = "connected"
-	CollectorStatusCollecting            CollectorStatusType = "collecting"
-	CollectorStatusCollected             CollectorStatusType = "collected"
-	CollectorStatusError                 CollectorStatusType = "error"
+	CollectorStatusReady      CollectorStatusType = "ready"
+	CollectorStatusConnecting CollectorStatusType = "connecting"
+	CollectorStatusConnected  CollectorStatusType = "connected"
+	CollectorStatusCollecting CollectorStatusType = "collecting"
+	CollectorStatusCollected  CollectorStatusType = "collected"
+	CollectorStatusError      CollectorStatusType = "error"
 )
 
 type AgentStatus struct {

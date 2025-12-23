@@ -105,7 +105,7 @@ func NewRunCommand(cfg *config.Configuration) *cobra.Command {
 			}
 
 			// create services
-			collectorSrv := services.NewCollectorService(sched, s)
+			collectorSrv := services.NewCollectorService(sched, s, cfg.Agent.DataFolder)
 			consoleSrv := services.NewConsoleService(cfg.Agent, sched, consoleClient, collectorSrv, s)
 
 			// init handlers
