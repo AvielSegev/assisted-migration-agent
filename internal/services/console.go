@@ -61,6 +61,8 @@ func NewConsoleService(cfg config.Agent, s *scheduler.Scheduler, client *console
 		go c.run()
 	}
 
+	zap.S().Named("console_service").Infow("agent mode", "current", defaultStatus.Current, "target", defaultStatus.Target)
+
 	return c
 }
 
@@ -93,8 +95,6 @@ func (c *Console) SetMode(mode models.AgentMode) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	zap.S().Debugw("setting agent mode", "targetMode", mode, "currentTarget", c.status.Target)
-
 	switch mode {
 	case models.AgentModeConnected:
 		c.status.Target = models.ConsoleStatusConnected
@@ -107,6 +107,8 @@ func (c *Console) SetMode(mode models.AgentMode) {
 		}
 		c.status.Target = models.ConsoleStatusDisconnected
 	}
+
+	zap.S().Named("console_service").Infow("agent mode changed", "current", mode, "target", c.status.Target)
 }
 
 func (c *Console) Status() models.ConsoleStatus {
@@ -134,7 +136,7 @@ func (c *Console) run() {
 	tick := time.NewTicker(c.updateInterval)
 	defer func() {
 		tick.Stop()
-		zap.S().Debugw("run loop stopped")
+		zap.S().Named("console_service").Info("service stopped sending requests to console.rh.com")
 	}()
 
 	var inventoryFuture *models.Future[models.Result[any]]
@@ -144,23 +146,21 @@ func (c *Console) run() {
 		select {
 		case <-tick.C:
 		case <-c.close:
-			zap.S().Debugw("close signal received, exiting run loop")
 			return
 		}
 
 		if statusFuture != nil && statusFuture.IsResolved() {
 			result := statusFuture.Result()
-			zap.S().Debugw("status update completed", "error", result.Err)
 			if result.Err != nil {
 				switch result.Err.(type) {
 				case *errors.SourceGoneError:
-					zap.S().Info("source is gone..stop sending requests")
+					zap.S().Named("console_service").Error("source is gone..stop sending requests")
 					return
 				case *errors.AgentUnauthorizedError:
-					zap.S().Info("agent not authenticated..stop sending requests")
+					zap.S().Named("console_service").Error("agent not authenticated..stop sending requests")
 					return
 				default:
-					zap.S().Errorw("failed to send status to console", "error", result.Err)
+					zap.S().Named("console_service").Errorw("failed to send status to console", "error", result.Err)
 				}
 				c.status.Error = result.Err
 			}
@@ -169,16 +169,17 @@ func (c *Console) run() {
 
 		if inventoryFuture != nil {
 			if !inventoryFuture.IsResolved() {
-				continue // still sending previous inventory
+				continue
 			}
 			result := inventoryFuture.Result()
 			if result.Err != nil {
-				zap.S().Errorw("failed to send inventory to console", "error", result.Err)
+				zap.S().Named("console_service").Errorw("failed to send inventory to console", "error", result.Err)
 				c.status.Error = result.Err
 			}
 		}
 
 		if inventory, changed, err := c.getInventoryIfChanged(context.TODO()); err == nil && changed {
+			zap.S().Named("console_service").Infow("inventory changed. updating inventory...", "hash", c.inventoryLastHash)
 			inventoryFuture = c.dispatchInventory(inventory)
 		}
 	}
