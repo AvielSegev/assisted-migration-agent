@@ -68,3 +68,51 @@ func IsResourceNotFoundError(err error) bool {
 	var e *ResourceNotFoundError
 	return errors.As(err, &e)
 }
+
+// CollectionInProgressError indicates a collection is already running.
+type CollectionInProgressError struct{}
+
+func NewCollectionInProgressError() *CollectionInProgressError {
+	return &CollectionInProgressError{}
+}
+
+func (e *CollectionInProgressError) Error() string {
+	return "collection already in progress"
+}
+
+func IsCollectionInProgressError(err error) bool {
+	var e *CollectionInProgressError
+	return errors.As(err, &e)
+}
+
+// InvalidStateError indicates an invalid state for the requested operation.
+type InvalidStateError struct{}
+
+func NewInvalidStateError() *InvalidStateError {
+	return &InvalidStateError{}
+}
+
+func (e *InvalidStateError) Error() string {
+	return "invalid state for this operation"
+}
+
+func IsInvalidStateError(err error) bool {
+	var e *InvalidStateError
+	return errors.As(err, &e)
+}
+
+// InvalidCredentialsError indicates the provided credentials are invalid.
+type InvalidCredentialsError struct{}
+
+func NewInvalidCredentialsError() *InvalidCredentialsError {
+	return &InvalidCredentialsError{}
+}
+
+func (e *InvalidCredentialsError) Error() string {
+	return "invalid credentials"
+}
+
+func IsInvalidCredentialsError(err error) bool {
+	var e *InvalidCredentialsError
+	return errors.As(err, &e)
+}

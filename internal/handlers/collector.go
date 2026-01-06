@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"net/http"
 	"net/url"
 
@@ -10,7 +9,6 @@ import (
 
 	v1 "github.com/kubev2v/assisted-migration-agent/api/v1"
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
-	"github.com/kubev2v/assisted-migration-agent/internal/services"
 	srvErrors "github.com/kubev2v/assisted-migration-agent/pkg/errors"
 )
 
@@ -19,13 +17,8 @@ import (
 func (h *Handler) GetCollectorStatus(c *gin.Context) {
 	status := h.collector.GetStatus(c.Request.Context())
 
-	resp := v1.CollectorStatus{
-		Status:         mapStateToAPIStatus(status.State),
-		HasCredentials: status.HasCredentials,
-	}
-	if status.Error != "" {
-		resp.Error = &status.Error
-	}
+	var resp v1.CollectorStatus
+	resp.FromModel(status)
 
 	c.JSON(http.StatusOK, resp)
 }
@@ -60,27 +53,23 @@ func (h *Handler) StartCollector(c *gin.Context) {
 
 	// Start collection (saves creds, verifies, starts async job)
 	if err := h.collector.Start(c.Request.Context(), creds); err != nil {
-		zap.S().Errorw("failed to start collector", "error", err)
-
-		if errors.Is(err, services.ErrCollectionInProgress) {
-			c.JSON(http.StatusConflict, gin.H{"error": "collection already in progress"})
-			return
+		switch err.(type) {
+		case *srvErrors.CollectionInProgressError:
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		case *srvErrors.InvalidCredentialsError:
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		default:
+			zap.S().Named("collector_handler").Errorw("failed to start collector", "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start collector"})
 		}
-		if errors.Is(err, services.ErrInvalidCredentials) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid vCenter credentials"})
-			return
-		}
-
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start collector"})
 		return
 	}
 
 	// Return current state after starting
 	status := h.collector.GetStatus(c.Request.Context())
-	c.JSON(http.StatusAccepted, v1.CollectorStatus{
-		Status:         mapStateToAPIStatus(status.State),
-		HasCredentials: status.HasCredentials,
-	})
+	var resp v1.CollectorStatus
+	resp.FromModel(status)
+	c.JSON(http.StatusAccepted, resp)
 }
 
 // GetInventory returns the collected inventory
@@ -92,7 +81,7 @@ func (h *Handler) GetInventory(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
-		zap.S().Errorw("failed to get inventory", "error", err)
+		zap.S().Named("collector_handler").Errorw("failed to get inventory", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get inventory"})
 		return
 	}
@@ -105,34 +94,13 @@ func (h *Handler) GetInventory(c *gin.Context) {
 // (DELETE /collector)
 func (h *Handler) StopCollector(c *gin.Context) {
 	if err := h.collector.Stop(c.Request.Context()); err != nil {
-		zap.S().Errorw("failed to stop collector", "error", err)
+		zap.S().Named("collector_handler").Errorw("failed to stop collector", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to stop collector"})
 		return
 	}
 
 	status := h.collector.GetStatus(c.Request.Context())
-	c.JSON(http.StatusOK, v1.CollectorStatus{
-		Status:         mapStateToAPIStatus(status.State),
-		HasCredentials: status.HasCredentials,
-	})
-}
-
-// mapStateToAPIStatus converts internal state to API status.
-func mapStateToAPIStatus(state models.CollectorState) v1.CollectorStatusStatus {
-	switch state {
-	case models.CollectorStateReady:
-		return v1.CollectorStatusStatusReady
-	case models.CollectorStateConnecting:
-		return v1.CollectorStatusStatusConnecting
-	case models.CollectorStateConnected:
-		return v1.CollectorStatusStatusConnected
-	case models.CollectorStateCollecting:
-		return v1.CollectorStatusStatusCollecting
-	case models.CollectorStateCollected:
-		return v1.CollectorStatusStatusCollected
-	case models.CollectorStateError:
-		return v1.CollectorStatusStatusError
-	default:
-		return v1.CollectorStatusStatusReady
-	}
+	var resp v1.CollectorStatus
+	resp.FromModel(status)
+	c.JSON(http.StatusOK, resp)
 }
