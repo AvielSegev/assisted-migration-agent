@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/url"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"github.com/vmware/govmomi/vim25/soap"
 	"go.uber.org/zap"
 
+	"github.com/kubev2v/assisted-migration-agent/internal/inventory"
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	"github.com/kubev2v/assisted-migration-agent/internal/store"
 	srvErrors "github.com/kubev2v/assisted-migration-agent/pkg/errors"
@@ -26,10 +28,13 @@ var (
 	ErrInvalidCredentials   = errors.New("invalid credentials")
 )
 
+// CollectorService handles vSphere inventory collection.
 type CollectorService struct {
-	scheduler  *scheduler.Scheduler
-	store      *store.Store
-	dataFolder string
+	scheduler        *scheduler.Scheduler
+	store            *store.Store
+	dataFolder       string
+	opaPoliciesDir   string
+	inventoryBuilder *inventory.Builder
 
 	mu            sync.RWMutex
 	state         models.CollectorState
@@ -37,12 +42,14 @@ type CollectorService struct {
 	collectFuture *models.Future[models.Result[any]]
 }
 
-func NewCollectorService(s *scheduler.Scheduler, st *store.Store, dataFolder string) *CollectorService {
+func NewCollectorService(s *scheduler.Scheduler, st *store.Store, dataFolder, opaPoliciesDir string) *CollectorService {
 	c := &CollectorService{
-		scheduler:  s,
-		store:      st,
-		dataFolder: dataFolder,
-		state:      models.CollectorStateReady,
+		scheduler:        s,
+		store:            st,
+		dataFolder:       dataFolder,
+		opaPoliciesDir:   opaPoliciesDir,
+		inventoryBuilder: inventory.NewBuilder(opaPoliciesDir),
+		state:            models.CollectorStateReady,
 	}
 
 	// Log whether credentials exist from a previous run
@@ -206,6 +213,31 @@ func (c *CollectorService) startCollectionJob() {
 
 		zap.S().Infow("vSphere inventory collection completed", "db_path", vsphereCollector.DBPath())
 
+		// Build inventory from collected data
+		zap.S().Info("building inventory from collected data")
+		inv, err := c.inventoryBuilder.Build(ctx, vsphereCollector.ForkliftCollector())
+		if err != nil {
+			zap.S().Errorw("failed to build inventory", "error", err)
+			c.setError(err)
+			return nil, err
+		}
+
+		// Store the inventory
+		invData, err := json.Marshal(inv)
+		if err != nil {
+			zap.S().Errorw("failed to marshal inventory", "error", err)
+			c.setError(err)
+			return nil, err
+		}
+
+		if err := c.store.Inventory().Save(ctx, invData); err != nil {
+			zap.S().Errorw("failed to save inventory", "error", err)
+			c.setError(err)
+			return nil, err
+		}
+
+		zap.S().Info("inventory saved successfully")
+
 		c.setState(models.CollectorStateCollected)
 
 		// Transition back to ready after a brief moment
@@ -236,6 +268,18 @@ func (c *CollectorService) HasCredentials(ctx context.Context) (bool, error) {
 // GetInventory retrieves the stored inventory.
 func (c *CollectorService) GetInventory(ctx context.Context) (*models.Inventory, error) {
 	return c.store.Inventory().Get(ctx)
+}
+
+// HasInventory checks if inventory exists.
+func (c *CollectorService) HasInventory(ctx context.Context) (bool, error) {
+	_, err := c.store.Inventory().Get(ctx)
+	if srvErrors.IsResourceNotFoundError(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (c *CollectorService) setState(state models.CollectorState) {
