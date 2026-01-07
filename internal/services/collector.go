@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/url"
 	"strings"
 	"sync"
@@ -20,12 +19,6 @@ import (
 	"github.com/kubev2v/assisted-migration-agent/internal/store"
 	srvErrors "github.com/kubev2v/assisted-migration-agent/pkg/errors"
 	"github.com/kubev2v/assisted-migration-agent/pkg/scheduler"
-)
-
-var (
-	ErrCollectionInProgress = errors.New("collection already in progress")
-	ErrInvalidState         = errors.New("invalid state for this operation")
-	ErrInvalidCredentials   = errors.New("invalid credentials")
 )
 
 // CollectorService handles vSphere inventory collection.
@@ -55,9 +48,9 @@ func NewCollectorService(s *scheduler.Scheduler, st *store.Store, dataFolder, op
 	// Log whether credentials exist from a previous run
 	_, err := st.Credentials().Get(context.Background())
 	if err == nil {
-		zap.S().Info("collector initialized with existing credentials")
+		zap.S().Named("collector_service").Info("collector initialized with existing credentials")
 	} else {
-		zap.S().Info("collector initialized, awaiting credentials")
+		zap.S().Named("collector_service").Info("collector initialized, awaiting credentials")
 	}
 
 	return c
@@ -89,7 +82,7 @@ func (c *CollectorService) Start(ctx context.Context, creds *models.Credentials)
 	c.mu.Lock()
 	if c.collectFuture != nil && !c.collectFuture.IsResolved() {
 		c.mu.Unlock()
-		return ErrCollectionInProgress
+		return srvErrors.NewCollectionInProgressError()
 	}
 	c.mu.Unlock()
 
@@ -152,11 +145,11 @@ func (c *CollectorService) verifyCredentials(ctx context.Context, creds *models.
 		Client:         vimClient,
 	}
 
-	zap.S().Info("verifying vCenter credentials")
+	zap.S().Named("collector_service").Info("verifying vCenter credentials")
 	if err := client.Login(verifyCtx, u.User); err != nil {
 		if strings.Contains(err.Error(), "Login failure") ||
 			(strings.Contains(err.Error(), "incorrect") && strings.Contains(err.Error(), "password")) {
-			return ErrInvalidCredentials
+			return srvErrors.NewInvalidCredentialsError()
 		}
 		return err
 	}
@@ -164,7 +157,7 @@ func (c *CollectorService) verifyCredentials(ctx context.Context, creds *models.
 	_ = client.Logout(verifyCtx)
 	client.CloseIdleConnections()
 
-	zap.S().Info("vCenter credentials verified successfully")
+	zap.S().Named("collector_service").Info("vCenter credentials verified successfully")
 	return nil
 }
 
@@ -185,7 +178,7 @@ func (c *CollectorService) startCollectionJob() {
 	// Get credentials for the collector
 	creds, err := c.store.Credentials().Get(context.Background())
 	if err != nil {
-		zap.S().Errorw("failed to get credentials for collection", "error", err)
+		zap.S().Named("collector_service").Errorw("failed to get credentials for collection", "error", err)
 		c.setError(err)
 		return
 	}
@@ -193,12 +186,12 @@ func (c *CollectorService) startCollectionJob() {
 	c.collectFuture = c.scheduler.AddWork(func(ctx context.Context) (any, error) {
 		c.setState(models.CollectorStateCollecting)
 
-		zap.S().Info("starting vSphere inventory collection")
+		zap.S().Named("collector_service").Info("starting vSphere inventory collection")
 
 		// Create the vSphere collector (local to this job)
 		vsphereCollector, err := NewVSphereCollector(creds, c.dataFolder)
 		if err != nil {
-			zap.S().Errorw("failed to create vSphere collector", "error", err)
+			zap.S().Named("collector_service").Errorw("failed to create vSphere collector", "error", err)
 			c.setError(err)
 			return nil, err
 		}
@@ -206,18 +199,18 @@ func (c *CollectorService) startCollectionJob() {
 
 		// Run the collection (use ctx from scheduler for cancellation)
 		if err := vsphereCollector.Collect(ctx); err != nil {
-			zap.S().Errorw("vSphere collection failed", "error", err)
+			zap.S().Named("collector_service").Errorw("vSphere collection failed", "error", err)
 			c.setError(err)
 			return nil, err
 		}
 
-		zap.S().Infow("vSphere inventory collection completed", "db_path", vsphereCollector.DBPath())
+		zap.S().Named("collector_service").Infow("vSphere inventory collection completed", "db_path", vsphereCollector.DBPath())
 
 		// Build inventory from collected data
-		zap.S().Info("building inventory from collected data")
+		zap.S().Named("collector_service").Info("building inventory from collected data")
 		inv, err := c.inventoryBuilder.Build(ctx, vsphereCollector.ForkliftCollector())
 		if err != nil {
-			zap.S().Errorw("failed to build inventory", "error", err)
+			zap.S().Named("collector_service").Errorw("failed to build inventory", "error", err)
 			c.setError(err)
 			return nil, err
 		}
@@ -225,24 +218,20 @@ func (c *CollectorService) startCollectionJob() {
 		// Store the inventory
 		invData, err := json.Marshal(inv)
 		if err != nil {
-			zap.S().Errorw("failed to marshal inventory", "error", err)
+			zap.S().Named("collector_service").Errorw("failed to marshal inventory", "error", err)
 			c.setError(err)
 			return nil, err
 		}
 
 		if err := c.store.Inventory().Save(ctx, invData); err != nil {
-			zap.S().Errorw("failed to save inventory", "error", err)
+			zap.S().Named("collector_service").Errorw("failed to save inventory", "error", err)
 			c.setError(err)
 			return nil, err
 		}
 
-		zap.S().Info("inventory saved successfully")
+		zap.S().Named("collector_service").Info("inventory saved successfully")
 
 		c.setState(models.CollectorStateCollected)
-
-		// Transition back to ready after a brief moment
-		time.Sleep(100 * time.Millisecond)
-		c.setState(models.CollectorStateReady)
 
 		return nil, nil
 	})
@@ -285,7 +274,7 @@ func (c *CollectorService) HasInventory(ctx context.Context) (bool, error) {
 func (c *CollectorService) setState(state models.CollectorState) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	zap.S().Debugw("collector state transition", "from", c.state, "to", state)
+	zap.S().Named("collector_service").Debugw("collector state transition", "from", c.state, "to", state)
 	c.state = state
 	if state != models.CollectorStateError {
 		c.lastError = nil
