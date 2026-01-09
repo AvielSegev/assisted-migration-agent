@@ -16,6 +16,8 @@
 coverage.*
 *.coverprofile
 profile.cov
+ui/node_modules
+ui/dist
 
 # Dependency directories (remove the comment below to include it)
 vendor/
