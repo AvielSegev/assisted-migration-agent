@@ -42,14 +42,14 @@ var _ = Describe("Migrations", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("should create credentials table", func() {
+		It("should create configuration table", func() {
 			err := migrations.Run(ctx, db)
 			Expect(err).NotTo(HaveOccurred())
 
-			// Verify credentials table exists by inserting data
+			// Verify configuration table exists by inserting data
 			_, err = db.ExecContext(ctx, `
-				INSERT INTO credentials (id, url, username, password, is_data_sharing_allowed)
-				VALUES (1, 'https://test.com', 'user', 'pass', true)
+				INSERT INTO configuration (id, agent_mode)
+				VALUES (1, 'disconnected')
 			`)
 			Expect(err).NotTo(HaveOccurred())
 		})
@@ -93,7 +93,7 @@ var _ = Describe("Migrations", func() {
 			}
 			Expect(rows.Err()).NotTo(HaveOccurred())
 
-			Expect(versions).To(ContainElements(1, 2))
+			Expect(versions).To(ContainElements(1))
 		})
 	})
 })

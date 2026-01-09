@@ -1,22 +1,16 @@
 package store
 
-// Credentials queries
+// Configuration queries
 const (
-	queryGetCredentials = `
-		SELECT url, username, password, is_data_sharing_allowed, created_at, updated_at
-		FROM credentials WHERE id = 1`
+	queryGetConfiguration = `
+		SELECT agent_mode
+		FROM configuration WHERE id = 1`
 
-	queryUpsertCredentials = `
-		INSERT INTO credentials (id, url, username, password, is_data_sharing_allowed, updated_at)
-		VALUES (1, ?, ?, ?, ?, now())
+	queryUpsertConfiguration = `
+		INSERT INTO configuration (id, agent_mode)
+		VALUES (1, ?)
 		ON CONFLICT (id) DO UPDATE SET
-			url = EXCLUDED.url,
-			username = EXCLUDED.username,
-			password = EXCLUDED.password,
-			is_data_sharing_allowed = EXCLUDED.is_data_sharing_allowed,
-			updated_at = now()`
-
-	queryDeleteCredentials = `DELETE FROM credentials WHERE id = 1`
+			agent_mode = EXCLUDED.agent_mode`
 )
 
 // Inventory queries

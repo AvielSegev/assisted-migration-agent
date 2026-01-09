@@ -54,14 +54,10 @@ func (c *CollectorService) GetStatus(ctx context.Context) models.CollectorStatus
 		status.Error = c.lastError.Error()
 	}
 
-	// Check if credentials exist
-	_, err := c.store.Credentials().Get(ctx)
-	status.HasCredentials = err == nil
-
 	return status
 }
 
-// Start saves credentials, verifies them with vCenter, and starts async collection.
+// Start verifies creds with vCenter, and starts async collection.
 func (c *CollectorService) Start(ctx context.Context, creds *models.Credentials) error {
 	c.mu.Lock()
 	if c.collectFuture != nil && !c.collectFuture.IsResolved() {

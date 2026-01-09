@@ -51,8 +51,8 @@ func NewConsoleService(cfg config.Agent, s *scheduler.Scheduler, client *console
 		Target:  targetStatus,
 	}
 
-	creds, err := st.Credentials().Get(context.Background())
-	if err == nil && creds.IsDataSharingAllowed {
+	config, err := st.Configuration().Get(context.Background())
+	if err == nil && config.AgentMode == models.AgentModeConnected {
 		defaultStatus.Target = models.ConsoleStatusConnected
 	}
 	c := newConsoleService(cfg, s, client, collector, st, defaultStatus)
@@ -84,11 +84,11 @@ func newConsoleService(cfg config.Agent, s *scheduler.Scheduler, client *console
 
 // IsDataSharingAllowed checks if the user has allowed data sharing.
 func (c *Console) IsDataSharingAllowed(ctx context.Context) (bool, error) {
-	creds, err := c.store.Credentials().Get(ctx)
+	config, err := c.store.Configuration().Get(ctx)
 	if err != nil {
 		return false, err
 	}
-	return creds.IsDataSharingAllowed, nil
+	return config.AgentMode == models.AgentModeConnected, nil
 }
 
 func (c *Console) SetMode(mode models.AgentMode) {

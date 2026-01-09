@@ -123,16 +123,13 @@ var _ = Describe("Console Service", func() {
 		})
 	})
 
-	Describe("NewConsoleService with data sharing allowed in DB", func() {
-		It("should create a console service with connected target status when data sharing is allowed", func() {
-			// Save credentials with data sharing allowed before creating service
-			creds := &models.Credentials{
-				URL:                  "https://vcenter.example.com",
-				Username:             "admin",
-				Password:             "secret",
-				IsDataSharingAllowed: true,
+	Describe("NewConsoleService with connected mode in DB", func() {
+		It("should create a console service with connected target status when agent mode is connected", func() {
+			// Save configuration with connected mode before creating service
+			config := &models.Configuration{
+				AgentMode: models.AgentModeConnected,
 			}
-			err := st.Credentials().Save(context.Background(), creds)
+			err := st.Configuration().Save(context.Background(), config)
 			Expect(err).NotTo(HaveOccurred())
 
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -151,15 +148,12 @@ var _ = Describe("Console Service", func() {
 			Expect(status.Target).To(Equal(models.ConsoleStatusConnected))
 		})
 
-		It("should start sending status updates when data sharing is allowed", func() {
-			// Save credentials with data sharing allowed before creating service
-			creds := &models.Credentials{
-				URL:                  "https://vcenter.example.com",
-				Username:             "admin",
-				Password:             "secret",
-				IsDataSharingAllowed: true,
+		It("should start sending status updates when agent mode is connected", func() {
+			// Save configuration with connected mode before creating service
+			config := &models.Configuration{
+				AgentMode: models.AgentModeConnected,
 			}
-			err := st.Credentials().Save(context.Background(), creds)
+			err := st.Configuration().Save(context.Background(), config)
 			Expect(err).NotTo(HaveOccurred())
 
 			requestReceived := make(chan bool, 10)
@@ -177,15 +171,12 @@ var _ = Describe("Console Service", func() {
 			Eventually(requestReceived, 500*time.Millisecond).Should(Receive())
 		})
 
-		It("should remain disconnected when data sharing is not allowed", func() {
-			// Save credentials with data sharing NOT allowed
-			creds := &models.Credentials{
-				URL:                  "https://vcenter.example.com",
-				Username:             "admin",
-				Password:             "secret",
-				IsDataSharingAllowed: false,
+		It("should remain disconnected when agent mode is disconnected", func() {
+			// Save configuration with disconnected mode
+			config := &models.Configuration{
+				AgentMode: models.AgentModeDisconnected,
 			}
-			err := st.Credentials().Save(context.Background(), creds)
+			err := st.Configuration().Save(context.Background(), config)
 			Expect(err).NotTo(HaveOccurred())
 
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

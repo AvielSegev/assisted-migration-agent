@@ -61,6 +61,10 @@ func NewCredentialsNotFoundError() *ResourceNotFoundError {
 	return NewResourceNotFoundError("credentials")
 }
 
+func NewConfigurationNotFoundError() *ResourceNotFoundError {
+	return NewResourceNotFoundError("configuration")
+}
+
 func (e *ResourceNotFoundError) Error() string {
 	return fmt.Sprintf("%s not found", e.Kind)
 }

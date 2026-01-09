@@ -20,7 +20,6 @@ const (
 
 // CollectorStatus holds the current collector state and metadata.
 type CollectorStatus struct {
-	State          CollectorState
-	Error          string
-	HasCredentials bool
+	State CollectorState
+	Error string
 }
