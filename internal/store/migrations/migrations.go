@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/kubev2v/migration-planner/pkg/duckdb_parser"
+
 	"go.uber.org/zap"
 )
 
@@ -19,6 +21,10 @@ var migrationFiles embed.FS
 
 // Run executes all pending migrations in order.
 func Run(ctx context.Context, db *sql.DB) error {
+	if err := duckdb_parser.New(db, nil).Init(); err != nil {
+		return err
+	}
+
 	// Ensure migrations tracking table exists
 	if err := createMigrationsTable(ctx, db); err != nil {
 		return fmt.Errorf("creating migrations table: %w", err)

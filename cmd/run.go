@@ -108,12 +108,15 @@ func NewRunCommand(cfg *config.Configuration) *cobra.Command {
 			workBuilder := collectorv1.NewV1WorkBuilder(s, cfg.Agent.DataFolder, cfg.Agent.OpaPoliciesFolder)
 			collectorSrv := services.NewCollectorService(sched, s, workBuilder)
 
+			// create inspector service
+			inspectorSrv := services.NewInspectorService(sched, s).WithBuilder(models.UnimplementedInspectorWorkBuilder{})
+
 			consoleSrv := services.NewConsoleService(cfg.Agent, sched, consoleClient, collectorSrv, s)
 			inventorySrv := services.NewInventoryService(s)
 			vmSrv := services.NewVMService(s)
 
 			// init handlers
-			h := handlers.New(cfg.Agent.DataFolder, consoleSrv, collectorSrv, inventorySrv, vmSrv)
+			h := handlers.New(cfg.Agent.DataFolder, consoleSrv, collectorSrv, inventorySrv, vmSrv, inspectorSrv)
 
 			srv, err := server.NewServer(cfg, func(router *gin.RouterGroup) {
 				v1.RegisterHandlers(router, h)

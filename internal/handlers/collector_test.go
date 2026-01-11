@@ -29,7 +29,7 @@ var _ = Describe("Collector Handlers", func() {
 		mockCollector = &MockCollectorService{
 			StatusResult: models.CollectorStatus{State: models.CollectorStateReady},
 		}
-		handler = handlers.New("", nil, mockCollector, nil, nil)
+		handler = handlers.New("", nil, mockCollector, nil, nil, nil)
 		router = gin.New()
 		router.GET("/collector", handler.GetCollectorStatus)
 		router.POST("/collector", handler.StartCollector)

@@ -132,3 +132,29 @@ func IsConsoleClientError(err error) bool {
 	var e *ConsoleClientError
 	return errors.As(err, &e)
 }
+
+// InspectorWorkError indicates that an error occurred during the work
+type InspectorWorkError struct {
+	msg string
+}
+
+func NewInspectorWorkError(format string, args ...any) error {
+	return &InspectorWorkError{
+		msg: fmt.Sprintf(format, args...),
+	}
+}
+
+func (e *InspectorWorkError) Error() string {
+	return e.msg
+}
+
+// InspectorNotRunningError indicates that inspector not currently running
+type InspectorNotRunningError struct{}
+
+func NewInspectorNotRunningError() *InspectorNotRunningError {
+	return &InspectorNotRunningError{}
+}
+
+func (e *InspectorNotRunningError) Error() string {
+	return "inspector not running"
+}

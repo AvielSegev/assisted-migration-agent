@@ -32,19 +32,25 @@ const (
 	CollectorStatusStatusReady      CollectorStatusStatus = "ready"
 )
 
-// Defines values for InspectionStatusState.
-const (
-	InspectionStatusStateCompleted InspectionStatusState = "completed"
-	InspectionStatusStateError     InspectionStatusState = "error"
-	InspectionStatusStatePending   InspectionStatusState = "pending"
-	InspectionStatusStateRunning   InspectionStatusState = "running"
-)
-
 // Defines values for InspectorStatusState.
 const (
-	InspectorStatusStateError   InspectorStatusState = "error"
-	InspectorStatusStateReady   InspectorStatusState = "ready"
-	InspectorStatusStateRunning InspectorStatusState = "running"
+	InspectorStatusStateCanceled   InspectorStatusState = "canceled"
+	InspectorStatusStateCanceling  InspectorStatusState = "canceling"
+	InspectorStatusStateCompleted  InspectorStatusState = "completed"
+	InspectorStatusStateError      InspectorStatusState = "error"
+	InspectorStatusStateInitiating InspectorStatusState = "Initiating"
+	InspectorStatusStateReady      InspectorStatusState = "ready"
+	InspectorStatusStateRunning    InspectorStatusState = "running"
+)
+
+// Defines values for VmInspectionStatusState.
+const (
+	VmInspectionStatusStateCanceled  VmInspectionStatusState = "canceled"
+	VmInspectionStatusStateCompleted VmInspectionStatusState = "completed"
+	VmInspectionStatusStateError     VmInspectionStatusState = "error"
+	VmInspectionStatusStateNotFound  VmInspectionStatusState = "not_found"
+	VmInspectionStatusStatePending   VmInspectionStatusState = "pending"
+	VmInspectionStatusStateRunning   VmInspectionStatusState = "running"
 )
 
 // AgentModeRequest defines model for AgentModeRequest.
@@ -110,20 +116,13 @@ type GuestNetwork struct {
 	PrefixLength *int32 `json:"prefixLength,omitempty"`
 }
 
-// InspectionStatus defines model for InspectionStatus.
-type InspectionStatus struct {
-	// Error Error message when state is error
-	Error *string `json:"error,omitempty"`
+// InspectorStartRequest defines model for InspectorStartRequest.
+type InspectorStartRequest struct {
+	VcenterCredentials VcenterCredentials `json:"VcenterCredentials"`
 
-	// Results Inspection results
-	Results *map[string]interface{} `json:"results,omitempty"`
-
-	// State Current inspection state
-	State InspectionStatusState `json:"state"`
+	// VmIds Array of VM id
+	VmIds VMIdArray `json:"vmIds"`
 }
-
-// InspectionStatusState Current inspection state
-type InspectionStatusState string
 
 // InspectorStatus defines model for InspectorStatus.
 type InspectorStatus struct {
@@ -146,8 +145,8 @@ type VM struct {
 	DiskSize int64 `json:"diskSize"`
 
 	// Id VM ID
-	Id         string           `json:"id"`
-	Inspection InspectionStatus `json:"inspection"`
+	Id         string             `json:"id"`
+	Inspection VmInspectionStatus `json:"inspection"`
 
 	// IssueCount Number of issues found for this VM
 	IssueCount int `json:"issueCount"`
@@ -213,8 +212,8 @@ type VMDetails struct {
 	HostName *string `json:"hostName,omitempty"`
 
 	// Id Unique identifier for the VM in vCenter
-	Id         string            `json:"id"`
-	Inspection *InspectionStatus `json:"inspection,omitempty"`
+	Id         string              `json:"id"`
+	Inspection *VmInspectionStatus `json:"inspection,omitempty"`
 
 	// IpAddress Primary IP address of the guest OS as reported by VMware Tools
 	IpAddress *string `json:"ipAddress,omitempty"`
@@ -283,8 +282,8 @@ type VMDisk struct {
 	Shared *bool `json:"shared,omitempty"`
 }
 
-// VMIdArray Array of VM IDs
-type VMIdArray = []int
+// VMIdArray Array of VM id
+type VMIdArray = []string
 
 // VMListResponse defines model for VMListResponse.
 type VMListResponse struct {
@@ -310,6 +309,30 @@ type VMNIC struct {
 	// Network Reference to the network this NIC is connected to
 	Network *string `json:"network,omitempty"`
 }
+
+// VcenterCredentials defines model for VcenterCredentials.
+type VcenterCredentials struct {
+	Password string `json:"password"`
+
+	// Url vCenter URL
+	Url      string `json:"url"`
+	Username string `json:"username"`
+}
+
+// VmInspectionStatus defines model for VmInspectionStatus.
+type VmInspectionStatus struct {
+	// Error Error message when state is error
+	Error *string `json:"error,omitempty"`
+
+	// Results Inspection results
+	Results *map[string]interface{} `json:"results,omitempty"`
+
+	// State Current inspection state
+	State VmInspectionStatusState `json:"state"`
+}
+
+// VmInspectionStatusState Current inspection state
+type VmInspectionStatusState string
 
 // GetVMsParams defines parameters for GetVMs.
 type GetVMsParams struct {
@@ -350,11 +373,8 @@ type SetAgentModeJSONRequestBody = AgentModeRequest
 // StartCollectorJSONRequestBody defines body for StartCollector for application/json ContentType.
 type StartCollectorJSONRequestBody = CollectorStartRequest
 
-// RemoveVMsFromInspectionJSONRequestBody defines body for RemoveVMsFromInspection for application/json ContentType.
-type RemoveVMsFromInspectionJSONRequestBody = VMIdArray
-
 // AddVMsToInspectionJSONRequestBody defines body for AddVMsToInspection for application/json ContentType.
 type AddVMsToInspectionJSONRequestBody = VMIdArray
 
 // StartInspectionJSONRequestBody defines body for StartInspection for application/json ContentType.
-type StartInspectionJSONRequestBody = VMIdArray
+type StartInspectionJSONRequestBody = InspectorStartRequest

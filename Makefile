@@ -138,6 +138,10 @@ validate-all: lint check-format tidy-check check-generate
 GINKGO := $(GOBIN)/ginkgo
 UNIT_TEST_PACKAGES := ./...
 UNIT_TEST_GINKGO_OPTIONS ?= 
+VCSIM_CONTAINER_NAME := vcsim-test
+VCSIM_PORT := 8989
+VCSIM_IMAGE := vmware/vcsim:latest
+
 
 # Install ginkgo if not already available
 $(GINKGO):
@@ -145,13 +149,23 @@ $(GINKGO):
 	@go install -v github.com/onsi/ginkgo/v2/ginkgo@v2.22.0
 	@echo "✅ 'ginkgo' installed successfully."
 
-.PHONY: test
+.PHONY: test vcsim
 # Run unit tests using ginkgo
-test: $(GINKGO)
+test: $(GINKGO) vcsim
 	@echo "🧪 Running Unit tests..."
 	@$(GINKGO) -v --show-node-events $(UNIT_TEST_GINKGO_OPTIONS) $(UNIT_TEST_PACKAGES)
 	@echo "✅ All Unit tests passed successfully."
 
+# Start vcsim container for testing
+vcsim:
+	@echo "🛑 Stopping vcsim container..."
+	@$(PODMAN) stop $(VCSIM_CONTAINER_NAME) 2>/dev/null || true
+	@$(PODMAN) rm $(VCSIM_CONTAINER_NAME) 2>/dev/null || true
+	@echo "✅ vcsim stopped"
+
+	@echo "🚀 Starting vcsim container using $(PODMAN)..."
+	@$(PODMAN) run -d --name $(VCSIM_CONTAINER_NAME) --rm -p $(VCSIM_PORT):$(VCSIM_PORT) \
+		$(VCSIM_IMAGE) -l :$(VCSIM_PORT) -dc 1 -cluster 1 -ds 1 -host 1 -vm 3
 
 ################################################################################
 # Emoji Legend for Makefile Targets

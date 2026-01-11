@@ -83,3 +83,50 @@ func (m *MockVMService) List(ctx context.Context, params services.VMListParams) 
 func (m *MockVMService) Get(ctx context.Context, id string) (*models.VM, error) {
 	return m.GetResult, m.GetError
 }
+
+// MockInspectorService is a mock implementation of InspectorService.
+type MockInspectorService struct {
+	StartError                   error
+	AddError                     error
+	GetStatusResult              models.InspectorStatus
+	GetVmStatusResult            models.InspectionStatus
+	GetVmStatusError             error
+	CancelVmsInspectionError     error
+	StopError                    error
+	StartCallCount               int
+	AddCallCount                 int
+	GetStatusCallCount           int
+	GetVmStatusCallCount         int
+	CancelVmsInspectionCallCount int
+	StopCallCount                int
+}
+
+func (m *MockInspectorService) Start(ctx context.Context, vmIDs []string, cred *models.Credentials) error {
+	m.StartCallCount++
+	return m.StartError
+}
+
+func (m *MockInspectorService) Add(ctx context.Context, vmIDs []string) error {
+	m.AddCallCount++
+	return m.AddError
+}
+
+func (m *MockInspectorService) GetStatus() models.InspectorStatus {
+	m.GetStatusCallCount++
+	return m.GetStatusResult
+}
+
+func (m *MockInspectorService) GetVmStatus(ctx context.Context, id string) (models.InspectionStatus, error) {
+	m.GetVmStatusCallCount++
+	return m.GetVmStatusResult, m.GetVmStatusError
+}
+
+func (m *MockInspectorService) CancelVmsInspection(ctx context.Context, vmIDs ...string) error {
+	m.CancelVmsInspectionCallCount++
+	return m.CancelVmsInspectionError
+}
+
+func (m *MockInspectorService) Stop(ctx context.Context) error {
+	m.StopCallCount++
+	return m.StopError
+}

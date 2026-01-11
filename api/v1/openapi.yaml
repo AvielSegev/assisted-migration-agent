@@ -233,16 +233,38 @@ paths:
           required: true
           description: VM ID
           schema:
-            type: integer
+            type: string
       responses:
         '200':
           description: VM inspection status
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/InspectionStatus'
+                $ref: '#/components/schemas/VmInspectionStatus'
         '404':
           description: VM not found
+        '500':
+          description: Internal server error
+    delete:
+      summary: Remove VM from inspection queue
+      operationId: removeVMFromInspection
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: VMs removed from queue
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VmInspectionStatus'
+        '400':
+          description: Invalid request
+        '404':
+          description: Inspector not running
         '500':
           description: Internal server error
 
@@ -267,8 +289,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/VMIdArray'
-            example: [1233, 1234, 1235]
+              $ref: '#/components/schemas/InspectorStartRequest'
       responses:
         '202':
           description: Inspection started
@@ -291,7 +312,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/VMIdArray'
-            example: [1236, 1237]
+            example: ["vm-1236", "vm-1237"]
       responses:
         '202':
           description: VMs added to inspection queue
@@ -306,16 +327,8 @@ paths:
         '500':
           description: Internal server error
     delete:
-      summary: Remove VMs from inspection queue or stop inspector entirely
-      operationId: removeVMsFromInspection
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/VMIdArray'
-            example: [1236, 1237]
-        description: Optional array of VM IDs to remove from queue. If not provided, stops the inspector entirely.
+      summary: Stop inspector entirely
+      operationId: stopInspection
       responses:
         '200':
           description: VMs removed from queue
@@ -323,10 +336,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InspectorStatus'
-        '204':
-          description: Inspector stopped (when no request body provided)
         '400':
-          description: Invalid request
+          description: Already in canceling state
         '404':
           description: Inspector not running
         '500':
@@ -443,7 +454,7 @@ components:
             - connected
             - disconnected
 
-    InspectionStatus:
+    VmInspectionStatus:
       type: object
       required:
         - state
@@ -454,7 +465,9 @@ components:
             - pending
             - running
             - completed
+            - canceled
             - error
+            - not_found
           description: Current inspection state
         error:
           type: string
@@ -499,7 +512,7 @@ components:
           type: integer
           description: Number of issues found for this VM
         inspection:
-          $ref: '#/components/schemas/InspectionStatus'
+          $ref: '#/components/schemas/VmInspectionStatus'
 
     VMDetails:
       type: object
@@ -619,7 +632,7 @@ components:
             type: string
           description: List of issue identifiers affecting this VM
         inspection:
-          $ref: '#/components/schemas/InspectionStatus'
+          $ref: '#/components/schemas/VmInspectionStatus'
           description: Current inspection status for this VM
 
     VMDisk:
@@ -720,15 +733,46 @@ components:
           type: string
           enum:
             - ready
+            - Initiating
             - running
+            - canceling
+            - canceled
+            - completed
             - error
           description: Inspector state
         error:
           type: string
           description: Error message when state is error
 
+    InspectorStartRequest:
+      type: object
+      required:
+        - VcenterCredentials
+        - vmIds
+      properties:
+        VcenterCredentials:
+          $ref: '#/components/schemas/VcenterCredentials'
+        vmIds:
+          $ref: '#/components/schemas/VMIdArray'
+
     VMIdArray:
       type: array
       items:
-        type: integer
-      description: Array of VM IDs
+        type: string
+      description: Array of VM id
+
+    VcenterCredentials:
+      required:
+        - url
+        - username
+        - password
+      properties:
+        url:
+          type: string
+          format: uri
+          description: vCenter URL
+        username:
+          type: string
+        password:
+          type: string
+          format: password

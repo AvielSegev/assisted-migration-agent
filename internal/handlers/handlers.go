@@ -31,20 +31,39 @@ type VMService interface {
 	Get(ctx context.Context, id string) (*models.VM, error)
 }
 
+// InspectorService defines the interface for deep inspector operations.
+type InspectorService interface {
+	Start(ctx context.Context, vmIDs []string, cred *models.Credentials) error
+	Add(ctx context.Context, vmIDs []string) error
+	GetStatus() models.InspectorStatus
+	GetVmStatus(ctx context.Context, id string) (models.InspectionStatus, error)
+	CancelVmsInspection(ctx context.Context, vmIDs ...string) error
+	Stop(ctx context.Context) error
+}
+
 type Handler struct {
 	consoleSrv   ConsoleService
 	collectorSrv CollectorService
 	inventorySrv InventoryService
+	inspectorSrv InspectorService
 	vmSrv        VMService
 	dataDir      string
 }
 
-func New(dataDir string, consoleSrv ConsoleService, collectorSrv CollectorService, invSrv InventoryService, vmSrv VMService) *Handler {
+func New(
+	dataDir string,
+	consoleSrv ConsoleService,
+	collectorSrv CollectorService,
+	inventorySrv InventoryService,
+	vmSrv VMService,
+	inspectorSrv InspectorService,
+) *Handler {
 	return &Handler{
 		consoleSrv:   consoleSrv,
 		collectorSrv: collectorSrv,
-		inventorySrv: invSrv,
+		inventorySrv: inventorySrv,
 		vmSrv:        vmSrv,
+		inspectorSrv: inspectorSrv,
 		dataDir:      dataDir,
 	}
 }

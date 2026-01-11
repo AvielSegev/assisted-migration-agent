@@ -25,7 +25,7 @@ var _ = Describe("Inventory Handlers", func() {
 	BeforeEach(func() {
 		gin.SetMode(gin.TestMode)
 		mockInventory = &MockInventoryService{}
-		handler = handlers.New("", nil, nil, mockInventory, nil)
+		handler = handlers.New("", nil, nil, mockInventory, nil, nil)
 		router = gin.New()
 		router.GET("/inventory", handler.GetInventory)
 	})

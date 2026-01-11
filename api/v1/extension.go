@@ -28,9 +28,7 @@ func NewVMFromSummary(vm models.VMSummary) VM {
 		Memory:       int64(vm.Memory),
 		VCenterState: vm.PowerState,
 		IssueCount:   vm.IssueCount,
-		Inspection: InspectionStatus{
-			State: InspectionStatusStatePending,
-		},
+		Inspection:   NewInspectionStatus(vm.Status),
 	}
 }
 
@@ -162,4 +160,59 @@ func NewVMDetailsFromModel(vm models.VM) VMDetails {
 	}
 
 	return details
+}
+
+func NewInspectorStatus(status models.InspectorStatus) InspectorStatus {
+	var c InspectorStatus
+
+	switch status.State {
+	case models.InspectorStateReady:
+		c.State = InspectorStatusStateReady
+	case models.InspectorStateInitiating:
+		c.State = InspectorStatusStateInitiating
+	case models.InspectorStateRunning:
+		c.State = InspectorStatusStateRunning
+	case models.InspectorStateCanceling:
+		c.State = InspectorStatusStateCanceling
+	case models.InspectorStateCanceled:
+		c.State = InspectorStatusStateCanceled
+	case models.InspectorStateCompleted:
+		c.State = InspectorStatusStateCompleted
+	case models.InspectorStateError:
+		c.State = InspectorStatusStateError
+	default:
+		c.State = InspectorStatusStateReady
+	}
+
+	if status.Error != nil {
+		e := status.Error.Error()
+		c.Error = &e
+	}
+
+	return c
+}
+
+func NewInspectionStatus(status models.InspectionStatus) VmInspectionStatus {
+	var c VmInspectionStatus
+	switch status.State.Value() {
+	case models.InspectionStatePending.Value():
+		c.State = VmInspectionStatusStatePending
+	case models.InspectionStateRunning.Value():
+		c.State = VmInspectionStatusStateRunning
+	case models.InspectionStateCanceled.Value():
+		c.State = VmInspectionStatusStateCanceled
+	case models.InspectionStateCompleted.Value():
+		c.State = VmInspectionStatusStateCompleted
+	case models.InspectionStateError.Value():
+		c.State = VmInspectionStatusStateError
+	default:
+		c.State = VmInspectionStatusStateNotFound
+	}
+
+	if status.Error != nil {
+		err := status.Error.Error()
+		c.Error = &err
+	}
+
+	return c
 }

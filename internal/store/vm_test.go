@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/kubev2v/assisted-migration-agent/internal/store/migrations"
+
 	"github.com/kubev2v/assisted-migration-agent/internal/store"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -18,9 +20,12 @@ var _ = Describe("VMStore", func() {
 
 	BeforeEach(func() {
 		ctx = context.Background()
-
 		var err error
+
 		db, err = store.NewDB(":memory:")
+		Expect(err).NotTo(HaveOccurred())
+
+		err = migrations.Run(ctx, db)
 		Expect(err).NotTo(HaveOccurred())
 
 		s = store.NewStore(db)
@@ -62,27 +67,8 @@ var _ = Describe("VMStore", func() {
 	Describe("List", func() {
 		BeforeEach(func() {
 			// Create schema first
-			_, err := db.ExecContext(ctx, `
-				CREATE TABLE IF NOT EXISTS vinfo (
-					"VM ID" VARCHAR,
-					"VM" VARCHAR,
-					"Powerstate" VARCHAR,
-					"Cluster" VARCHAR,
-					"Datacenter" VARCHAR,
-					"Memory" INTEGER DEFAULT 0
-				);
-				CREATE TABLE IF NOT EXISTS concerns (
-					"VM_ID" VARCHAR,
-					"Concern_ID" VARCHAR,
-					"Label" VARCHAR,
-					"Category" VARCHAR,
-					"Assessment" VARCHAR
-				);
-				CREATE TABLE IF NOT EXISTS vdisk (
-					"VM ID" VARCHAR,
-					"Capacity MiB" BIGINT DEFAULT 0
-				);
-			`)
+			err := migrations.Run(ctx, db)
+			Expect(err).NotTo(HaveOccurred())
 			Expect(err).NotTo(HaveOccurred())
 
 			// Insert test VMs
@@ -275,28 +261,7 @@ var _ = Describe("VMStore", func() {
 
 	Describe("Count", func() {
 		BeforeEach(func() {
-			// Create schema first
-			_, err := db.ExecContext(ctx, `
-				CREATE TABLE IF NOT EXISTS vinfo (
-					"VM ID" VARCHAR,
-					"VM" VARCHAR,
-					"Powerstate" VARCHAR,
-					"Cluster" VARCHAR,
-					"Datacenter" VARCHAR,
-					"Memory" INTEGER DEFAULT 0
-				);
-				CREATE TABLE IF NOT EXISTS concerns (
-					"VM_ID" VARCHAR,
-					"Concern_ID" VARCHAR,
-					"Label" VARCHAR,
-					"Category" VARCHAR,
-					"Assessment" VARCHAR
-				);
-				CREATE TABLE IF NOT EXISTS vdisk (
-					"VM ID" VARCHAR,
-					"Capacity MiB" BIGINT DEFAULT 0
-				);
-			`)
+			err := migrations.Run(ctx, db)
 			Expect(err).NotTo(HaveOccurred())
 
 			insertVM("vm-1", "vm1", "poweredOn", "cluster-a", 4096)

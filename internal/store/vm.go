@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
@@ -29,9 +30,12 @@ func (s *VMStore) List(ctx context.Context, opts ...ListOption) ([]models.VMSumm
 		`v."Memory" AS memory`,
 		`COALESCE(d.total_disk, 0) AS disk_size`,
 		`COALESCE(c.issue_count, 0) AS issue_count`,
+		`COALESCE(i.status, 'not_found') AS status`,
+		`COALESCE(i.error, '') AS error`,
 	).From("vinfo v").
 		LeftJoin(`(SELECT "VM_ID", COUNT(*) AS issue_count FROM concerns GROUP BY "VM_ID") c ON v."VM ID" = c."VM_ID"`).
-		LeftJoin(`(SELECT "VM ID", SUM("Capacity MiB") AS total_disk FROM vdisk GROUP BY "VM ID") d ON v."VM ID" = d."VM ID"`)
+		LeftJoin(`(SELECT "VM ID", SUM("Capacity MiB") AS total_disk FROM vdisk GROUP BY "VM ID") d ON v."VM ID" = d."VM ID"`).
+		LeftJoin(`vm_inspection_status i ON v."VM ID" = i."VM ID"`)
 
 	for _, opt := range opts {
 		builder = opt(builder)
@@ -51,6 +55,7 @@ func (s *VMStore) List(ctx context.Context, opts ...ListOption) ([]models.VMSumm
 	var vms []models.VMSummary
 	for rows.Next() {
 		var vm models.VMSummary
+		var sqlErr string
 		err := rows.Scan(
 			&vm.ID,
 			&vm.Name,
@@ -59,10 +64,13 @@ func (s *VMStore) List(ctx context.Context, opts ...ListOption) ([]models.VMSumm
 			&vm.Memory,
 			&vm.DiskSize,
 			&vm.IssueCount,
+			&vm.Status.State,
+			&sqlErr,
 		)
 		if err != nil {
 			return nil, err
 		}
+		vm.Status.Error = errors.New(sqlErr)
 		vms = append(vms, vm)
 	}
 
