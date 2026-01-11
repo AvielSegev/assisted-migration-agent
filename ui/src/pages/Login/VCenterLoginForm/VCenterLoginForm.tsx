@@ -40,7 +40,7 @@ function VCenterLoginForm({
 
     const handleSubmit = (event: React.FormEvent) => {
         event.preventDefault();
-        if (isFormValid) {
+        if (isFormValid && !isLoading && !isDisabled) {
             collect({ url, username, password, isDataShared });
         }
     };
@@ -91,7 +91,11 @@ function VCenterLoginForm({
             </Flex>
 
             <ActionGroup style={{ marginTop: 0 }}>
-                <Flex alignItems={{ default: "alignItemsCenter" }} gap={{ default: "gapMd" }}>
+                <Flex 
+                    alignItems={{ default: "alignItemsCenter" }} 
+                    gap={{ default: "gapMd" }}
+                    style={{ minHeight: "36px" }}
+                >
                     <FlexItem>
                         <Button
                             variant="primary"
@@ -109,12 +113,12 @@ function VCenterLoginForm({
                             </Button>
                         </FlexItem>
                     )}
-                    {isLoading && progressComponent && (
-                        <FlexItem>
-                            {progressComponent}
-                        </FlexItem>
-                    )}
                 </Flex>
+                {isLoading && progressComponent && (
+                    <div style={{ marginTop: "16px" }}>
+                        {progressComponent}
+                    </div>
+                )}
             </ActionGroup>
         </Form>
     );

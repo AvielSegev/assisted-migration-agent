@@ -27,6 +27,9 @@ function App() {
     const isCollecting = isCollectorRunning(status);
 
     const handleCollect = useCallback(async (credentials: Credentials, dataShared: boolean) => {
+        // Reset collector to clear any previous error state
+        await dispatch(resetCollector()).catch(() => {});
+        
         dispatch(startCollection({
             url: credentials.url,
             username: credentials.username,
@@ -90,19 +93,25 @@ function App() {
 
     const hasInventory = inventory && inventory.vcenter_id;
 
+    if (hasInventory) {
+        return (
+            <Layout variant="full">
+                <ReportContainer />
+            </Layout>
+        );
+    }
+
     return (
         <Layout>
-            {hasInventory ? <ReportContainer /> : (
-                <Login
-                    version="v1.0.0"
-                    isDataShared={isDataShared}
-                    isCollecting={isCollecting}
-                    status={status}
-                    error={error}
-                    onCollect={handleCollect}
-                    onCancel={handleCancel}
-                />
-            )}
+            <Login
+                version="v1.0.0"
+                isDataShared={isDataShared}
+                isCollecting={isCollecting}
+                status={status}
+                error={error}
+                onCollect={handleCollect}
+                onCancel={handleCancel}
+            />
         </Layout>
     );
 }
