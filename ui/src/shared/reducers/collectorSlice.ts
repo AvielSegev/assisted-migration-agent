@@ -128,6 +128,7 @@ const collectorSlice = createSlice({
         }
       })
       .addCase(fetchCollectorStatus.rejected, (state, action) => {
+        state.status = CollectorStatusStatusEnum.Ready;
         state.error = action.payload as ApiError;
       })
       .addCase(startCollection.pending, (state) => {
@@ -143,6 +144,7 @@ const collectorSlice = createSlice({
       })
       .addCase(startCollection.rejected, (state, action) => {
         state.loading = false;
+        state.status = CollectorStatusStatusEnum.Ready;
         state.error = action.payload as ApiError;
       })
       .addCase(stopCollection.pending, (state) => {
