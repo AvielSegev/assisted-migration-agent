@@ -417,7 +417,7 @@ components:
           type: string
           description: VM name
         id:
-          type: integer
+          type: string
           description: VM ID
         vCenterState:
           type: string

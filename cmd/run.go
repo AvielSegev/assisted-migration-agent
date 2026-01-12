@@ -111,9 +111,10 @@ func NewRunCommand(cfg *config.Configuration) *cobra.Command {
 
 			consoleSrv := services.NewConsoleService(cfg.Agent, sched, consoleClient, collectorSrv, s)
 			inventorySrv := services.NewInventoryService(s)
+			vmSrv := services.NewVMService(s)
 
 			// init handlers
-			h := handlers.New(consoleSrv, collectorSrv, inventorySrv)
+			h := handlers.New(consoleSrv, collectorSrv, inventorySrv, vmSrv)
 
 			srv, err := server.NewServer(cfg, func(router *gin.RouterGroup) {
 				v1.RegisterHandlers(router, h)

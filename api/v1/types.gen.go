@@ -148,7 +148,7 @@ type VM struct {
 	DiskSize string `json:"diskSize"`
 
 	// Id VM ID
-	Id         int              `json:"id"`
+	Id         string           `json:"id"`
 	Inspection InspectionStatus `json:"inspection"`
 
 	// Issues List of issues found during inspection
