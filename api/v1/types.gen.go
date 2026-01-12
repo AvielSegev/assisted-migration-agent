@@ -50,10 +50,10 @@ const (
 
 // Defines values for GetVMsParamsDisksize.
 const (
-	N010TB  GetVMsParamsDisksize = "0-10TB"
-	N1120TB GetVMsParamsDisksize = "11-20TB"
-	N2150TB GetVMsParamsDisksize = "21-50TB"
-	N50TB   GetVMsParamsDisksize = "50+TB"
+	N0100GB    GetVMsParamsDisksize = "0-100GB"
+	N1000GB    GetVMsParamsDisksize = "1000+GB"
+	N101500GB  GetVMsParamsDisksize = "101-500GB"
+	N5011000GB GetVMsParamsDisksize = "501-1000GB"
 )
 
 // Defines values for GetVMsParamsMemorysize.

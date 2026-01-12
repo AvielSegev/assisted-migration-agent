@@ -13,7 +13,7 @@ function capitalizeFirst(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-function extractApiError(error: unknown, fallbackMessage: string): ApiError {
+export function extractApiError(error: unknown, fallbackMessage: string): ApiError {
   if (error && typeof error === 'object' && 'response' in error) {
     const axiosError = error as { response?: { status?: number; data?: { message?: string } }; message?: string };
     const message = axiosError.response?.data?.message ?? axiosError.message ?? fallbackMessage;

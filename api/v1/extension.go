@@ -31,7 +31,7 @@ func NewVMFromModel(vm models.VM) VM {
 		Name:         vm.Name,
 		Cluster:      vm.Cluster,
 		Datacenter:   vm.Datacenter,
-		DiskSize:     fmt.Sprintf("%dTB", vm.DiskSize),
+		DiskSize:     fmt.Sprintf("%dGB", vm.DiskSize),
 		Memory:       fmt.Sprintf("%dGB", vm.Memory),
 		VCenterState: vm.State,
 		Issues:       vm.Issues,
@@ -47,19 +47,19 @@ func NewVMFromModel(vm models.VM) VM {
 	return apiVM
 }
 
-// ParseDiskSizeRanges converts API disk size params to service ranges.
+// ParseDiskSizeRanges converts API disk size params to service ranges (in GB).
 func ParseDiskSizeRanges(ranges []GetVMsParamsDisksize) []services.SizeRange {
 	var result []services.SizeRange
 	for _, r := range ranges {
 		switch r {
-		case N010TB:
-			result = append(result, services.SizeRange{Min: 0, Max: 10})
-		case N1120TB:
-			result = append(result, services.SizeRange{Min: 11, Max: 20})
-		case N2150TB:
-			result = append(result, services.SizeRange{Min: 21, Max: 50})
-		case N50TB:
-			result = append(result, services.SizeRange{Min: 50, Max: 0})
+		case N0100GB:
+			result = append(result, services.SizeRange{Min: 0, Max: 100})
+		case N101500GB:
+			result = append(result, services.SizeRange{Min: 101, Max: 500})
+		case N5011000GB:
+			result = append(result, services.SizeRange{Min: 501, Max: 1000})
+		case N1000GB:
+			result = append(result, services.SizeRange{Min: 1000, Max: 0})
 		}
 	}
 	return result

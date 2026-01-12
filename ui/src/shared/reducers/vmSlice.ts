@@ -1,0 +1,112 @@
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import type { VM, VMListResponse } from '@generated/index';
+import { apiClient } from '@shared/api/client';
+import type { ApiError } from './collectorSlice';
+import { extractApiError } from './collectorSlice';
+
+export interface VMFilters {
+  datacenters?: string[];
+  clusters?: string[];
+  status?: string[];
+  issues?: string[];
+}
+
+interface VMState {
+  vms: VM[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  filters: VMFilters;
+  loading: boolean;
+  error: ApiError | null;
+  initialized: boolean;
+}
+
+const initialState: VMState = {
+  vms: [],
+  total: 0,
+  page: 1,
+  pageSize: 20,
+  pageCount: 1,
+  filters: {},
+  loading: false,
+  error: null,
+  initialized: false,
+};
+
+export interface FetchVMsParams {
+  page?: number;
+  pageSize?: number;
+  filters?: VMFilters;
+}
+
+export const fetchVMs = createAsyncThunk(
+  'vm/fetchVMs',
+  async (params: FetchVMsParams | undefined, { getState, rejectWithValue }) => {
+    try {
+      const state = getState() as { vm: VMState };
+      const page = params?.page ?? state.vm.page;
+      const pageSize = params?.pageSize ?? state.vm.pageSize;
+      const filters = params?.filters ?? state.vm.filters;
+
+      const response = await apiClient.getVMs(
+        filters.issues,
+        filters.datacenters,
+        filters.clusters,
+        undefined, // disksize
+        undefined, // memorysize
+        filters.status,
+        page,
+        pageSize
+      );
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(extractApiError(error, 'Failed to fetch VMs'));
+    }
+  }
+);
+
+const vmSlice = createSlice({
+  name: 'vm',
+  initialState,
+  reducers: {
+    setPage: (state, action: PayloadAction<number>) => {
+      state.page = action.payload;
+    },
+    setPageSize: (state, action: PayloadAction<number>) => {
+      state.pageSize = action.payload;
+      state.page = 1; // Reset to first page when changing page size
+    },
+    setFilters: (state, action: PayloadAction<VMFilters>) => {
+      state.filters = action.payload;
+      state.page = 1; // Reset to first page when changing filters
+    },
+    clearError: (state) => {
+      state.error = null;
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchVMs.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchVMs.fulfilled, (state, action: PayloadAction<VMListResponse>) => {
+        state.loading = false;
+        state.initialized = true;
+        state.vms = action.payload.vms;
+        state.total = action.payload.total;
+        state.page = action.payload.page;
+        state.pageCount = action.payload.pageCount;
+      })
+      .addCase(fetchVMs.rejected, (state, action) => {
+        state.loading = false;
+        state.initialized = true;
+        state.error = action.payload as ApiError;
+      });
+  },
+});
+
+export const { setPage, setPageSize, setFilters, clearError } = vmSlice.actions;
+export default vmSlice.reducer;

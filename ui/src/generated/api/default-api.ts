@@ -30,12 +30,53 @@ import type { CollectorStartRequest } from '../models';
 // @ts-ignore
 import type { CollectorStatus } from '../models';
 // @ts-ignore
+import type { InspectionStatus } from '../models';
+// @ts-ignore
+import type { InspectorStatus } from '../models';
+// @ts-ignore
 import type { Inventory } from '../models';
+// @ts-ignore
+import type { VMListResponse } from '../models';
 /**
  * DefaultApi - axios parameter creator
  */
 export const DefaultApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
+        /**
+         * 
+         * @summary Add more VMs to inspection queue
+         * @param {Array<number>} requestBody 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        addVMsToInspection: async (requestBody: Array<number>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'requestBody' is not null or undefined
+            assertParamExists('addVMsToInspection', 'requestBody', requestBody)
+            const localVarPath = `/vms/inspector`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PATCH', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(requestBody, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
         /**
          * 
          * @summary Get agent status
@@ -98,6 +139,36 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
         },
         /**
          * 
+         * @summary Get inspector status
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getInspectorStatus: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/vms/inspector`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Get collected inventory
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -120,6 +191,143 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Get inspection status for a specific VM
+         * @param {number} id VM ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getVMInspectionStatus: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('getVMInspectionStatus', 'id', id)
+            const localVarPath = `/vms/{id}/inspector`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Get list of VMs with filtering and pagination
+         * @param {Array<string>} [issues] Filter by issues (OR logic - matches VMs with any of the specified issues)
+         * @param {Array<string>} [datacenters] Filter by datacenters (OR logic - matches VMs in any of the specified datacenters)
+         * @param {Array<string>} [clusters] Filter by clusters (OR logic - matches VMs in any of the specified clusters)
+         * @param {Array<GetVMsDisksizeEnum>} [disksize] Filter by disk size ranges (OR logic - matches VMs in any of the specified ranges)
+         * @param {Array<GetVMsMemorysizeEnum>} [memorysize] Filter by memory size ranges (OR logic - matches VMs in any of the specified ranges)
+         * @param {Array<string>} [status] Filter by status (OR logic - matches VMs with any of the specified statuses)
+         * @param {number} [page] Page number for pagination
+         * @param {number} [pageSize] Number of items per page
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getVMs: async (issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, disksize?: Array<GetVMsDisksizeEnum>, memorysize?: Array<GetVMsMemorysizeEnum>, status?: Array<string>, page?: number, pageSize?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/vms`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (issues) {
+                localVarQueryParameter['issues'] = issues;
+            }
+
+            if (datacenters) {
+                localVarQueryParameter['datacenters'] = datacenters;
+            }
+
+            if (clusters) {
+                localVarQueryParameter['clusters'] = clusters;
+            }
+
+            if (disksize) {
+                localVarQueryParameter['disksize'] = disksize;
+            }
+
+            if (memorysize) {
+                localVarQueryParameter['memorysize'] = memorysize;
+            }
+
+            if (status) {
+                localVarQueryParameter['status'] = status;
+            }
+
+            if (page !== undefined) {
+                localVarQueryParameter['page'] = page;
+            }
+
+            if (pageSize !== undefined) {
+                localVarQueryParameter['pageSize'] = pageSize;
+            }
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Remove VMs from inspection queue or stop inspector entirely
+         * @param {Array<number>} [requestBody] Optional array of VM IDs to remove from queue. If not provided, stops the inspector entirely.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        removeVMsFromInspection: async (requestBody?: Array<number>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/vms/inspector`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(requestBody, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -198,6 +406,41 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
         },
         /**
          * 
+         * @summary Start inspection for VMs
+         * @param {Array<number>} requestBody 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        startInspection: async (requestBody: Array<number>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'requestBody' is not null or undefined
+            assertParamExists('startInspection', 'requestBody', requestBody)
+            const localVarPath = `/vms/inspector`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(requestBody, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Stop collection
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -236,6 +479,19 @@ export const DefaultApiFp = function(configuration?: Configuration) {
     return {
         /**
          * 
+         * @summary Add more VMs to inspection queue
+         * @param {Array<number>} requestBody 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async addVMsToInspection(requestBody: Array<number>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<InspectorStatus>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.addVMsToInspection(requestBody, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['DefaultApi.addVMsToInspection']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Get agent status
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -260,6 +516,18 @@ export const DefaultApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Get inspector status
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getInspectorStatus(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<InspectorStatus>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getInspectorStatus(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['DefaultApi.getInspectorStatus']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Get collected inventory
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -268,6 +536,52 @@ export const DefaultApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.getInventory(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['DefaultApi.getInventory']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Get inspection status for a specific VM
+         * @param {number} id VM ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getVMInspectionStatus(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<InspectionStatus>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getVMInspectionStatus(id, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['DefaultApi.getVMInspectionStatus']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Get list of VMs with filtering and pagination
+         * @param {Array<string>} [issues] Filter by issues (OR logic - matches VMs with any of the specified issues)
+         * @param {Array<string>} [datacenters] Filter by datacenters (OR logic - matches VMs in any of the specified datacenters)
+         * @param {Array<string>} [clusters] Filter by clusters (OR logic - matches VMs in any of the specified clusters)
+         * @param {Array<GetVMsDisksizeEnum>} [disksize] Filter by disk size ranges (OR logic - matches VMs in any of the specified ranges)
+         * @param {Array<GetVMsMemorysizeEnum>} [memorysize] Filter by memory size ranges (OR logic - matches VMs in any of the specified ranges)
+         * @param {Array<string>} [status] Filter by status (OR logic - matches VMs with any of the specified statuses)
+         * @param {number} [page] Page number for pagination
+         * @param {number} [pageSize] Number of items per page
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getVMs(issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, disksize?: Array<GetVMsDisksizeEnum>, memorysize?: Array<GetVMsMemorysizeEnum>, status?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<VMListResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getVMs(issues, datacenters, clusters, disksize, memorysize, status, page, pageSize, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['DefaultApi.getVMs']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Remove VMs from inspection queue or stop inspector entirely
+         * @param {Array<number>} [requestBody] Optional array of VM IDs to remove from queue. If not provided, stops the inspector entirely.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async removeVMsFromInspection(requestBody?: Array<number>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<InspectorStatus>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.removeVMsFromInspection(requestBody, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['DefaultApi.removeVMsFromInspection']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -298,6 +612,19 @@ export const DefaultApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Start inspection for VMs
+         * @param {Array<number>} requestBody 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async startInspection(requestBody: Array<number>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<InspectorStatus>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.startInspection(requestBody, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['DefaultApi.startInspection']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Stop collection
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -319,6 +646,16 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
     return {
         /**
          * 
+         * @summary Add more VMs to inspection queue
+         * @param {Array<number>} requestBody 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        addVMsToInspection(requestBody: Array<number>, options?: RawAxiosRequestConfig): AxiosPromise<InspectorStatus> {
+            return localVarFp.addVMsToInspection(requestBody, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Get agent status
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -337,12 +674,58 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
         },
         /**
          * 
+         * @summary Get inspector status
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getInspectorStatus(options?: RawAxiosRequestConfig): AxiosPromise<InspectorStatus> {
+            return localVarFp.getInspectorStatus(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Get collected inventory
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
         getInventory(options?: RawAxiosRequestConfig): AxiosPromise<Inventory> {
             return localVarFp.getInventory(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Get inspection status for a specific VM
+         * @param {number} id VM ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getVMInspectionStatus(id: number, options?: RawAxiosRequestConfig): AxiosPromise<InspectionStatus> {
+            return localVarFp.getVMInspectionStatus(id, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Get list of VMs with filtering and pagination
+         * @param {Array<string>} [issues] Filter by issues (OR logic - matches VMs with any of the specified issues)
+         * @param {Array<string>} [datacenters] Filter by datacenters (OR logic - matches VMs in any of the specified datacenters)
+         * @param {Array<string>} [clusters] Filter by clusters (OR logic - matches VMs in any of the specified clusters)
+         * @param {Array<GetVMsDisksizeEnum>} [disksize] Filter by disk size ranges (OR logic - matches VMs in any of the specified ranges)
+         * @param {Array<GetVMsMemorysizeEnum>} [memorysize] Filter by memory size ranges (OR logic - matches VMs in any of the specified ranges)
+         * @param {Array<string>} [status] Filter by status (OR logic - matches VMs with any of the specified statuses)
+         * @param {number} [page] Page number for pagination
+         * @param {number} [pageSize] Number of items per page
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getVMs(issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, disksize?: Array<GetVMsDisksizeEnum>, memorysize?: Array<GetVMsMemorysizeEnum>, status?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<VMListResponse> {
+            return localVarFp.getVMs(issues, datacenters, clusters, disksize, memorysize, status, page, pageSize, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Remove VMs from inspection queue or stop inspector entirely
+         * @param {Array<number>} [requestBody] Optional array of VM IDs to remove from queue. If not provided, stops the inspector entirely.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        removeVMsFromInspection(requestBody?: Array<number>, options?: RawAxiosRequestConfig): AxiosPromise<InspectorStatus> {
+            return localVarFp.removeVMsFromInspection(requestBody, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -366,6 +749,16 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
         },
         /**
          * 
+         * @summary Start inspection for VMs
+         * @param {Array<number>} requestBody 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        startInspection(requestBody: Array<number>, options?: RawAxiosRequestConfig): AxiosPromise<InspectorStatus> {
+            return localVarFp.startInspection(requestBody, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Stop collection
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -380,6 +773,15 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
  * DefaultApi - interface
  */
 export interface DefaultApiInterface {
+    /**
+     * 
+     * @summary Add more VMs to inspection queue
+     * @param {Array<number>} requestBody 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    addVMsToInspection(requestBody: Array<number>, options?: RawAxiosRequestConfig): AxiosPromise<InspectorStatus>;
+
     /**
      * 
      * @summary Get agent status
@@ -398,11 +800,53 @@ export interface DefaultApiInterface {
 
     /**
      * 
+     * @summary Get inspector status
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getInspectorStatus(options?: RawAxiosRequestConfig): AxiosPromise<InspectorStatus>;
+
+    /**
+     * 
      * @summary Get collected inventory
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
     getInventory(options?: RawAxiosRequestConfig): AxiosPromise<Inventory>;
+
+    /**
+     * 
+     * @summary Get inspection status for a specific VM
+     * @param {number} id VM ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getVMInspectionStatus(id: number, options?: RawAxiosRequestConfig): AxiosPromise<InspectionStatus>;
+
+    /**
+     * 
+     * @summary Get list of VMs with filtering and pagination
+     * @param {Array<string>} [issues] Filter by issues (OR logic - matches VMs with any of the specified issues)
+     * @param {Array<string>} [datacenters] Filter by datacenters (OR logic - matches VMs in any of the specified datacenters)
+     * @param {Array<string>} [clusters] Filter by clusters (OR logic - matches VMs in any of the specified clusters)
+     * @param {Array<GetVMsDisksizeEnum>} [disksize] Filter by disk size ranges (OR logic - matches VMs in any of the specified ranges)
+     * @param {Array<GetVMsMemorysizeEnum>} [memorysize] Filter by memory size ranges (OR logic - matches VMs in any of the specified ranges)
+     * @param {Array<string>} [status] Filter by status (OR logic - matches VMs with any of the specified statuses)
+     * @param {number} [page] Page number for pagination
+     * @param {number} [pageSize] Number of items per page
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getVMs(issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, disksize?: Array<GetVMsDisksizeEnum>, memorysize?: Array<GetVMsMemorysizeEnum>, status?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<VMListResponse>;
+
+    /**
+     * 
+     * @summary Remove VMs from inspection queue or stop inspector entirely
+     * @param {Array<number>} [requestBody] Optional array of VM IDs to remove from queue. If not provided, stops the inspector entirely.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    removeVMsFromInspection(requestBody?: Array<number>, options?: RawAxiosRequestConfig): AxiosPromise<InspectorStatus>;
 
     /**
      * 
@@ -424,6 +868,15 @@ export interface DefaultApiInterface {
 
     /**
      * 
+     * @summary Start inspection for VMs
+     * @param {Array<number>} requestBody 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    startInspection(requestBody: Array<number>, options?: RawAxiosRequestConfig): AxiosPromise<InspectorStatus>;
+
+    /**
+     * 
      * @summary Stop collection
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -436,6 +889,17 @@ export interface DefaultApiInterface {
  * DefaultApi - object-oriented interface
  */
 export class DefaultApi extends BaseAPI implements DefaultApiInterface {
+    /**
+     * 
+     * @summary Add more VMs to inspection queue
+     * @param {Array<number>} requestBody 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public addVMsToInspection(requestBody: Array<number>, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).addVMsToInspection(requestBody, options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      * 
      * @summary Get agent status
@@ -458,12 +922,62 @@ export class DefaultApi extends BaseAPI implements DefaultApiInterface {
 
     /**
      * 
+     * @summary Get inspector status
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getInspectorStatus(options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).getInspectorStatus(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary Get collected inventory
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
     public getInventory(options?: RawAxiosRequestConfig) {
         return DefaultApiFp(this.configuration).getInventory(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get inspection status for a specific VM
+     * @param {number} id VM ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getVMInspectionStatus(id: number, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).getVMInspectionStatus(id, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get list of VMs with filtering and pagination
+     * @param {Array<string>} [issues] Filter by issues (OR logic - matches VMs with any of the specified issues)
+     * @param {Array<string>} [datacenters] Filter by datacenters (OR logic - matches VMs in any of the specified datacenters)
+     * @param {Array<string>} [clusters] Filter by clusters (OR logic - matches VMs in any of the specified clusters)
+     * @param {Array<GetVMsDisksizeEnum>} [disksize] Filter by disk size ranges (OR logic - matches VMs in any of the specified ranges)
+     * @param {Array<GetVMsMemorysizeEnum>} [memorysize] Filter by memory size ranges (OR logic - matches VMs in any of the specified ranges)
+     * @param {Array<string>} [status] Filter by status (OR logic - matches VMs with any of the specified statuses)
+     * @param {number} [page] Page number for pagination
+     * @param {number} [pageSize] Number of items per page
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getVMs(issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, disksize?: Array<GetVMsDisksizeEnum>, memorysize?: Array<GetVMsMemorysizeEnum>, status?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).getVMs(issues, datacenters, clusters, disksize, memorysize, status, page, pageSize, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Remove VMs from inspection queue or stop inspector entirely
+     * @param {Array<number>} [requestBody] Optional array of VM IDs to remove from queue. If not provided, stops the inspector entirely.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public removeVMsFromInspection(requestBody?: Array<number>, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).removeVMsFromInspection(requestBody, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -490,6 +1004,17 @@ export class DefaultApi extends BaseAPI implements DefaultApiInterface {
 
     /**
      * 
+     * @summary Start inspection for VMs
+     * @param {Array<number>} requestBody 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public startInspection(requestBody: Array<number>, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).startInspection(requestBody, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary Stop collection
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -499,3 +1024,18 @@ export class DefaultApi extends BaseAPI implements DefaultApiInterface {
     }
 }
 
+export enum GetVMsDisksizeEnum {
+    _0100Gb = '0-100GB',
+    _101500Gb = '101-500GB',
+    _5011000Gb = '501-1000GB',
+    _1000Gb = '1000+GB'
+}
+export enum GetVMsMemorysizeEnum {
+    _04Gb = '0-4GB',
+    _516Gb = '5-16GB',
+    _1732Gb = '17-32GB',
+    _3364Gb = '33-64GB',
+    _65128Gb = '65-128GB',
+    _129256Gb = '129-256GB',
+    _256Gb = '256+GB'
+}
