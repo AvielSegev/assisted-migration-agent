@@ -70,7 +70,7 @@ bin/agent run \
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--server-http-port` | `8080` | Port on which the HTTP server listens |
+| `--server-http-port` | `8000` | Port on which the HTTP server listens |
 | `--server-mode` | `dev` | Server mode: `dev` or `prod`. Production mode enables HTTPS with self-signed certificates |
 | `--server-statics-folder` | (none) | Path to static files folder. Required when server mode is `prod` |
 
