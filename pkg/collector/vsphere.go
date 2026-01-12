@@ -3,8 +3,9 @@ package collector
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net/url"
-	"path/filepath"
+	"os"
 	"time"
 
 	api "github.com/kubev2v/forklift/pkg/apis/forklift/v1beta1"
@@ -36,16 +37,15 @@ type Collector interface {
 }
 
 type VSphereCollector struct {
-	dataDir   string
 	collector *vsphere.Collector
 	container *libcontainer.Container
 	db        libmodel.DB
 	dbPath    string
 }
 
-func NewVSphereCollector(dataDir string) *VSphereCollector {
+func NewVSphereCollector(dbPath string) *VSphereCollector {
 	return &VSphereCollector{
-		dataDir: dataDir,
+		dbPath: dbPath,
 	}
 }
 
@@ -88,13 +88,11 @@ func (c *VSphereCollector) Collect(ctx context.Context, creds *models.Credential
 	provider := createProvider(creds)
 	secret := createSecret(creds)
 
-	dbPath := filepath.Join(c.dataDir, "vsphere.db")
-	db, err := createDB(provider, dbPath)
+	db, err := createDB(provider, c.dbPath)
 	if err != nil {
 		return err
 	}
 	c.db = db
-	c.dbPath = dbPath
 	c.collector = vsphere.New(db, provider, secret)
 
 	zap.S().Info("starting forklift vSphere collector")
@@ -125,6 +123,9 @@ func (c *VSphereCollector) Close() {
 	if c.db != nil {
 		_ = c.db.Close(true)
 	}
+	// clean up wal files
+	_ = os.Remove(fmt.Sprintf("%s-wal", c.dbPath))
+	_ = os.Remove(fmt.Sprintf("%s-shm", c.dbPath))
 }
 
 // createProvider creates a forklift Provider object from credentials.
@@ -184,7 +185,14 @@ func startWebContainer(collector *vsphere.Collector) (*libcontainer.Container, e
 	}
 	handlers = append(handlers, web.Handlers(container)...)
 
-	webServer := libweb.New(container, handlers...)
+	// choose an random port to isolate the webserver
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	webServer := libweb.WebServer{
+		Port:      r.Intn(65000-10000+1) + 10000,
+		Container: container,
+		Handlers:  handlers,
+	}
 	webServer.Start()
 
 	// Wait for collector to reach parity (fully synchronized with vCenter)

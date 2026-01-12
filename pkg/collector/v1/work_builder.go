@@ -2,8 +2,12 @@ package v1
 
 import (
 	"context"
+	"fmt"
+	"path"
 
 	"go.uber.org/zap"
+
+	"github.com/google/uuid"
 
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	"github.com/kubev2v/assisted-migration-agent/internal/store"
@@ -12,18 +16,19 @@ import (
 
 // V1WorkBuilder builds a sequence of WorkUnits for the v1 collector workflow.
 type V1WorkBuilder struct {
-	collector      collector.Collector
+	collector      *collector.VSphereCollector
 	store          *store.Store
 	opaPoliciesDir string
+	dataDir        string
 	creds          *models.Credentials
 }
 
 // NewV1WorkBuilder creates a new v1 work builder.
-func NewV1WorkBuilder(c collector.Collector, s *store.Store, opaPoliciesDir string) *V1WorkBuilder {
+func NewV1WorkBuilder(s *store.Store, dataDir, opaPoliciesDir string) *V1WorkBuilder {
 	return &V1WorkBuilder{
-		collector:      c,
 		store:          s,
 		opaPoliciesDir: opaPoliciesDir,
+		dataDir:        dataDir,
 	}
 }
 
@@ -36,6 +41,12 @@ func (b *V1WorkBuilder) WithCredentials(creds *models.Credentials) models.WorkBu
 // Build creates the sequence of WorkUnits for the collector workflow.
 // The first unit is always the ready state.
 func (b *V1WorkBuilder) Build() []models.WorkUnit {
+	// create a new collector with a random sqlite db.
+	// The db name needs to be unique per run because it cannot be reused.
+	// It panics when the user stop and collect again but, because the collection step cannot be
+	// stoped, it can happen that db can be full when the process stops.
+
+	b.collector = collector.NewVSphereCollector(path.Join(b.dataDir, fmt.Sprintf("%s.db", uuid.New())))
 	return []models.WorkUnit{
 		b.connecting(),
 		b.collecting(),

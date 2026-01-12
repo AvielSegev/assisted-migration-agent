@@ -30,7 +30,6 @@ import (
 	"github.com/kubev2v/assisted-migration-agent/internal/services"
 	"github.com/kubev2v/assisted-migration-agent/internal/store"
 	"github.com/kubev2v/assisted-migration-agent/internal/store/migrations"
-	"github.com/kubev2v/assisted-migration-agent/pkg/collector"
 	collectorv1 "github.com/kubev2v/assisted-migration-agent/pkg/collector/v1"
 	"github.com/kubev2v/assisted-migration-agent/pkg/console"
 	"github.com/kubev2v/assisted-migration-agent/pkg/scheduler"
@@ -107,8 +106,7 @@ func NewRunCommand(cfg *config.Configuration) *cobra.Command {
 			}
 
 			// create collector service
-			vsphereCollector := collector.NewVSphereCollector(cfg.Agent.DataFolder)
-			workBuilder := collectorv1.NewV1WorkBuilder(vsphereCollector, s, cfg.Agent.OpaPoliciesFolder)
+			workBuilder := collectorv1.NewV1WorkBuilder(s, cfg.Agent.DataFolder, cfg.Agent.OpaPoliciesFolder)
 			collectorSrv := services.NewCollectorService(sched, workBuilder)
 
 			consoleSrv := services.NewConsoleService(cfg.Agent, sched, consoleClient, collectorSrv, s)
