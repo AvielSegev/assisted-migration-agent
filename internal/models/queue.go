@@ -10,9 +10,8 @@ func (wq *Queue[T]) Len() int { return len(*wq) }
 
 func (wq *Queue[T]) Pop() T {
 	old := *wq
-	n := len(old)
-	x := old[n-1]
-	*wq = old[0 : n-1]
+	x := old[0]
+	*wq = old[1:]
 	return x
 }
 
