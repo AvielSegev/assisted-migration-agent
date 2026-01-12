@@ -14,9 +14,8 @@ type CollectorService struct {
 	scheduler *scheduler.Scheduler
 	builder   models.WorkBuilder
 
-	state         chan models.CollectorStatus
-	cancelWork    chan any
-	currentFuture *models.Future[models.Result[any]]
+	state      chan models.CollectorStatus
+	cancelWork chan any
 }
 
 func NewCollectorService(s *scheduler.Scheduler, builder models.WorkBuilder) *CollectorService {

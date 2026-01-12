@@ -58,7 +58,7 @@ func NewScheduler(nbWorkers int) *Scheduler {
 }
 
 func (s *Scheduler) AddWork(w models.Work[any]) *models.Future[models.Result[any]] {
-	c := make(chan models.Result[any])
+	c := make(chan models.Result[any], 1)
 	ctx, cancel := context.WithCancel(s.mainCtx)
 	s.work <- workRequest{w, c, ctx}
 	return models.NewFuture(c, cancel)

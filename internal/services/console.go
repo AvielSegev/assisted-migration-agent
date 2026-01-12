@@ -119,13 +119,10 @@ func (c *Console) Status() models.ConsoleStatus {
 
 // run is the main loop that sends status and inventory updates to the console.
 //
-// On each tick (heartbeat):
-//  1. Check if statusFuture is resolved. If yes, handle errors (fatal errors stop the loop),
-//     then dispatch a new status update.
-//  2. If collector status is not "collected", skip inventory processing.
-//  3. If inventoryFuture is still pending, skip (don't send new inventory until previous completes).
-//  4. If inventoryFuture resolved, handle any errors.
-//  5. If inventory changed since last send (hash comparison), dispatch new inventory update.
+// On each iteration:
+//  1. Dispatch status update and block until complete. Handle errors (fatal errors stop the loop).
+//  2. If inventory changed since last send (hash comparison), dispatch inventory update and block until complete.
+//  3. Wait for next tick or close signal.
 //
 // Fatal errors (stop the loop, no retry):
 //   - SourceGoneError (410): The source was deleted from the console. No point in sending updates.
@@ -139,9 +136,6 @@ func (c *Console) run() {
 		zap.S().Named("console_service").Info("service stopped sending requests to console.rh.com")
 	}()
 
-	var inventoryFuture *models.Future[models.Result[any]]
-	statusFuture := c.dispatchStatus()
-
 	for {
 		select {
 		case <-tick.C:
@@ -149,8 +143,9 @@ func (c *Console) run() {
 			return
 		}
 
-		if statusFuture != nil && statusFuture.IsResolved() {
-			result := statusFuture.Result()
+		statusFuture := c.dispatchStatus()
+		select {
+		case result := <-statusFuture.C():
 			if result.Err != nil {
 				switch result.Err.(type) {
 				case *errors.SourceGoneError:
@@ -164,23 +159,25 @@ func (c *Console) run() {
 				}
 				c.status.Error = result.Err
 			}
-			statusFuture = c.dispatchStatus()
-		}
-
-		if inventoryFuture != nil {
-			if !inventoryFuture.IsResolved() {
-				continue
-			}
-			result := inventoryFuture.Result()
-			if result.Err != nil {
-				zap.S().Named("console_service").Errorw("failed to send inventory to console", "error", result.Err)
-				c.status.Error = result.Err
-			}
+		case <-c.close:
+			statusFuture.Stop()
+			return
 		}
 
 		if inventory, changed, err := c.getInventoryIfChanged(context.TODO()); err == nil && changed {
 			zap.S().Named("console_service").Infow("inventory changed. updating inventory...", "hash", c.inventoryLastHash)
-			inventoryFuture = c.dispatchInventory(inventory)
+
+			inventoryFuture := c.dispatchInventory(inventory)
+			select {
+			case result := <-inventoryFuture.C():
+				if result.Err != nil {
+					zap.S().Named("console_service").Errorw("failed to send inventory to console", "error", result.Err)
+					c.status.Error = result.Err
+				}
+			case <-c.close:
+				inventoryFuture.Stop()
+				return
+			}
 		}
 	}
 }

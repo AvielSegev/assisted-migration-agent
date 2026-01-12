@@ -2,15 +2,11 @@ package models
 
 import (
 	"context"
-	"sync"
 )
 
 type Future[T any] struct {
-	input       chan T
-	inputClosed bool
-	value       T
-	cancel      context.CancelFunc
-	lock        sync.Mutex
+	input  chan T
+	cancel context.CancelFunc
 }
 
 func NewFuture[T any](input chan T, cancel context.CancelFunc) *Future[T] {
@@ -19,38 +15,11 @@ func NewFuture[T any](input chan T, cancel context.CancelFunc) *Future[T] {
 		cancel: cancel,
 	}
 
-	// go func() {
-	// 	v := <-f.input
-	// 	f.lock.Lock()
-	// 	defer f.lock.Unlock()
-	//
-	// 	f.value = v
-	// 	f.inputClosed = true
-	// 	f.cancel()
-	// }()
-
 	return f
 }
 
 func (f *Future[T]) C() chan T {
 	return f.input
-}
-
-func (f *Future[T]) IsResolved() bool {
-	f.lock.Lock()
-	defer f.lock.Unlock()
-	return f.inputClosed
-}
-
-func (f *Future[T]) Result() (value T) {
-	f.lock.Lock()
-	defer f.lock.Unlock()
-	if f.inputClosed {
-		return f.value
-	}
-
-	var none T
-	return none
 }
 
 func (f *Future[T]) Stop() {
