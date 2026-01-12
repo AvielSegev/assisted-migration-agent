@@ -4,12 +4,71 @@ All URIs are relative to */api/v1*
 
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
+|[**addVMsToInspection**](#addvmstoinspection) | **PATCH** /vms/inspector | Add more VMs to inspection queue|
 |[**getAgentStatus**](#getagentstatus) | **GET** /agent | Get agent status|
 |[**getCollectorStatus**](#getcollectorstatus) | **GET** /collector | Get collector status|
+|[**getInspectorStatus**](#getinspectorstatus) | **GET** /vms/inspector | Get inspector status|
 |[**getInventory**](#getinventory) | **GET** /inventory | Get collected inventory|
+|[**getVMInspectionStatus**](#getvminspectionstatus) | **GET** /vms/{id}/inspector | Get inspection status for a specific VM|
+|[**getVMs**](#getvms) | **GET** /vms | Get list of VMs with filtering and pagination|
+|[**removeVMsFromInspection**](#removevmsfrominspection) | **DELETE** /vms/inspector | Remove VMs from inspection queue or stop inspector entirely|
 |[**setAgentMode**](#setagentmode) | **POST** /agent | Change agent mode|
 |[**startCollector**](#startcollector) | **POST** /collector | Start inventory collection|
+|[**startInspection**](#startinspection) | **POST** /vms/inspector | Start inspection for VMs|
 |[**stopCollector**](#stopcollector) | **DELETE** /collector | Stop collection|
+
+# **addVMsToInspection**
+> InspectorStatus addVMsToInspection(requestBody)
+
+
+### Example
+
+```typescript
+import {
+    DefaultApi,
+    Configuration
+} from 'migration-agent-api-client';
+
+const configuration = new Configuration();
+const apiInstance = new DefaultApi(configuration);
+
+let requestBody: Array<number>; //
+
+const { status, data } = await apiInstance.addVMsToInspection(
+    requestBody
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **requestBody** | **Array<number>**|  | |
+
+
+### Return type
+
+**InspectorStatus**
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**202** | VMs added to inspection queue |  -  |
+|**400** | Invalid request |  -  |
+|**404** | Inspector not running |  -  |
+|**500** | Internal server error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **getAgentStatus**
 > AgentStatus getAgentStatus()
@@ -99,6 +158,50 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **getInspectorStatus**
+> InspectorStatus getInspectorStatus()
+
+
+### Example
+
+```typescript
+import {
+    DefaultApi,
+    Configuration
+} from 'migration-agent-api-client';
+
+const configuration = new Configuration();
+const apiInstance = new DefaultApi(configuration);
+
+const { status, data } = await apiInstance.getInspectorStatus();
+```
+
+### Parameters
+This endpoint does not have any parameters.
+
+
+### Return type
+
+**InspectorStatus**
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | Inspector status |  -  |
+|**500** | Internal server error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **getInventory**
 > Inventory getInventory()
 
@@ -140,6 +243,185 @@ No authorization required
 |-------------|-------------|------------------|
 |**200** | Collected inventory |  -  |
 |**404** | Inventory not available |  -  |
+|**500** | Internal server error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getVMInspectionStatus**
+> InspectionStatus getVMInspectionStatus()
+
+
+### Example
+
+```typescript
+import {
+    DefaultApi,
+    Configuration
+} from 'migration-agent-api-client';
+
+const configuration = new Configuration();
+const apiInstance = new DefaultApi(configuration);
+
+let id: number; //VM ID (default to undefined)
+
+const { status, data } = await apiInstance.getVMInspectionStatus(
+    id
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **id** | [**number**] | VM ID | defaults to undefined|
+
+
+### Return type
+
+**InspectionStatus**
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | VM inspection status |  -  |
+|**404** | VM not found |  -  |
+|**500** | Internal server error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getVMs**
+> VMListResponse getVMs()
+
+
+### Example
+
+```typescript
+import {
+    DefaultApi,
+    Configuration
+} from 'migration-agent-api-client';
+
+const configuration = new Configuration();
+const apiInstance = new DefaultApi(configuration);
+
+let issues: Array<string>; //Filter by issues (OR logic - matches VMs with any of the specified issues) (optional) (default to undefined)
+let datacenters: Array<string>; //Filter by datacenters (OR logic - matches VMs in any of the specified datacenters) (optional) (default to undefined)
+let clusters: Array<string>; //Filter by clusters (OR logic - matches VMs in any of the specified clusters) (optional) (default to undefined)
+let disksize: Array<'0-100GB' | '101-500GB' | '501-1000GB' | '1000+GB'>; //Filter by disk size ranges (OR logic - matches VMs in any of the specified ranges) (optional) (default to undefined)
+let memorysize: Array<'0-4GB' | '5-16GB' | '17-32GB' | '33-64GB' | '65-128GB' | '129-256GB' | '256+GB'>; //Filter by memory size ranges (OR logic - matches VMs in any of the specified ranges) (optional) (default to undefined)
+let status: Array<string>; //Filter by status (OR logic - matches VMs with any of the specified statuses) (optional) (default to undefined)
+let page: number; //Page number for pagination (optional) (default to 1)
+let pageSize: number; //Number of items per page (optional) (default to undefined)
+
+const { status, data } = await apiInstance.getVMs(
+    issues,
+    datacenters,
+    clusters,
+    disksize,
+    memorysize,
+    status,
+    page,
+    pageSize
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **issues** | **Array&lt;string&gt;** | Filter by issues (OR logic - matches VMs with any of the specified issues) | (optional) defaults to undefined|
+| **datacenters** | **Array&lt;string&gt;** | Filter by datacenters (OR logic - matches VMs in any of the specified datacenters) | (optional) defaults to undefined|
+| **clusters** | **Array&lt;string&gt;** | Filter by clusters (OR logic - matches VMs in any of the specified clusters) | (optional) defaults to undefined|
+| **disksize** | **Array<&#39;0-100GB&#39; &#124; &#39;101-500GB&#39; &#124; &#39;501-1000GB&#39; &#124; &#39;1000+GB&#39;>** | Filter by disk size ranges (OR logic - matches VMs in any of the specified ranges) | (optional) defaults to undefined|
+| **memorysize** | **Array<&#39;0-4GB&#39; &#124; &#39;5-16GB&#39; &#124; &#39;17-32GB&#39; &#124; &#39;33-64GB&#39; &#124; &#39;65-128GB&#39; &#124; &#39;129-256GB&#39; &#124; &#39;256+GB&#39;>** | Filter by memory size ranges (OR logic - matches VMs in any of the specified ranges) | (optional) defaults to undefined|
+| **status** | **Array&lt;string&gt;** | Filter by status (OR logic - matches VMs with any of the specified statuses) | (optional) defaults to undefined|
+| **page** | [**number**] | Page number for pagination | (optional) defaults to 1|
+| **pageSize** | [**number**] | Number of items per page | (optional) defaults to undefined|
+
+
+### Return type
+
+**VMListResponse**
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | List of VMs |  -  |
+|**400** | Invalid request parameters |  -  |
+|**500** | Internal server error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **removeVMsFromInspection**
+> InspectorStatus removeVMsFromInspection()
+
+
+### Example
+
+```typescript
+import {
+    DefaultApi,
+    Configuration
+} from 'migration-agent-api-client';
+
+const configuration = new Configuration();
+const apiInstance = new DefaultApi(configuration);
+
+let requestBody: Array<number>; //Optional array of VM IDs to remove from queue. If not provided, stops the inspector entirely. (optional)
+
+const { status, data } = await apiInstance.removeVMsFromInspection(
+    requestBody
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **requestBody** | **Array<number>**| Optional array of VM IDs to remove from queue. If not provided, stops the inspector entirely. | |
+
+
+### Return type
+
+**InspectorStatus**
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | VMs removed from queue |  -  |
+|**204** | Inspector stopped (when no request body provided) |  -  |
+|**400** | Invalid request |  -  |
+|**404** | Inspector not running |  -  |
 |**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
@@ -247,6 +529,59 @@ No authorization required
 |**202** | Collection started |  -  |
 |**400** | Invalid request |  -  |
 |**409** | Collection already in progress |  -  |
+|**500** | Internal server error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **startInspection**
+> InspectorStatus startInspection(requestBody)
+
+
+### Example
+
+```typescript
+import {
+    DefaultApi,
+    Configuration
+} from 'migration-agent-api-client';
+
+const configuration = new Configuration();
+const apiInstance = new DefaultApi(configuration);
+
+let requestBody: Array<number>; //
+
+const { status, data } = await apiInstance.startInspection(
+    requestBody
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **requestBody** | **Array<number>**|  | |
+
+
+### Return type
+
+**InspectorStatus**
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**202** | Inspection started |  -  |
+|**400** | Invalid request |  -  |
+|**409** | Inspector already running |  -  |
 |**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

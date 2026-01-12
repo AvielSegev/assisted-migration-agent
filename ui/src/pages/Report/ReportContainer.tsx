@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   MenuToggle,
   MenuToggleElement,
@@ -11,20 +11,40 @@ import {
   Tabs,
   TabTitleText,
 } from "@patternfly/react-core";
-import { useAppSelector } from "@shared/store";
+import { useAppSelector, useAppDispatch } from "@shared/store";
+import { fetchVMs, setPage, setPageSize } from "@shared/reducers";
 import { Infra, InventoryData, VMs } from "@generated/index";
 import { DataSharingAlert } from "@shared/components";
 import Header from "./Header";
 import Report from "./Report";
-import { VMTable, mockVMs } from "./VirtualMachines";
+import { VMTable } from "./VirtualMachines";
 import { buildClusterViewModel, ClusterOption } from "./assessment-report/clusterView";
 
 const ReportContainer: React.FC = () => {
+  const dispatch = useAppDispatch();
   const { inventory } = useAppSelector((state) => state.collector);
   const { mode } = useAppSelector((state) => state.agent);
+  const vmState = useAppSelector((state) => state.vm);
   const [activeTab, setActiveTab] = useState<string | number>(0);
   const [selectedClusterId, setSelectedClusterId] = useState<string>("all");
   const [isClusterSelectOpen, setIsClusterSelectOpen] = useState(false);
+
+  // Fetch VMs when tab switches to Virtual Machines or on initial load
+  useEffect(() => {
+    if (activeTab === 1 && !vmState.initialized) {
+      dispatch(fetchVMs());
+    }
+  }, [activeTab, vmState.initialized, dispatch]);
+
+  const handlePageChange = (newPage: number) => {
+    dispatch(setPage(newPage));
+    dispatch(fetchVMs({ page: newPage }));
+  };
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    dispatch(setPageSize(newPageSize));
+    dispatch(fetchVMs({ pageSize: newPageSize }));
+  };
 
   if (!inventory) {
     return null;
@@ -137,7 +157,16 @@ const ReportContainer: React.FC = () => {
             </Tab>
             <Tab eventKey={1} title={<TabTitleText>Virtual Machines</TabTitleText>}>
               <div style={{ marginTop: "24px" }}>
-                <VMTable vms={mockVMs} />
+                <VMTable
+                  vms={vmState.vms}
+                  total={vmState.total}
+                  page={vmState.page}
+                  pageSize={vmState.pageSize}
+                  pageCount={vmState.pageCount}
+                  loading={vmState.loading}
+                  onPageChange={handlePageChange}
+                  onPageSizeChange={handlePageSizeChange}
+                />
               </div>
             </Tab>
           </Tabs>

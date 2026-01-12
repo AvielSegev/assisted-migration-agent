@@ -51,11 +51,17 @@ All URIs are relative to */api/v1*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
+*DefaultApi* | [**addVMsToInspection**](docs/DefaultApi.md#addvmstoinspection) | **PATCH** /vms/inspector | Add more VMs to inspection queue
 *DefaultApi* | [**getAgentStatus**](docs/DefaultApi.md#getagentstatus) | **GET** /agent | Get agent status
 *DefaultApi* | [**getCollectorStatus**](docs/DefaultApi.md#getcollectorstatus) | **GET** /collector | Get collector status
+*DefaultApi* | [**getInspectorStatus**](docs/DefaultApi.md#getinspectorstatus) | **GET** /vms/inspector | Get inspector status
 *DefaultApi* | [**getInventory**](docs/DefaultApi.md#getinventory) | **GET** /inventory | Get collected inventory
+*DefaultApi* | [**getVMInspectionStatus**](docs/DefaultApi.md#getvminspectionstatus) | **GET** /vms/{id}/inspector | Get inspection status for a specific VM
+*DefaultApi* | [**getVMs**](docs/DefaultApi.md#getvms) | **GET** /vms | Get list of VMs with filtering and pagination
+*DefaultApi* | [**removeVMsFromInspection**](docs/DefaultApi.md#removevmsfrominspection) | **DELETE** /vms/inspector | Remove VMs from inspection queue or stop inspector entirely
 *DefaultApi* | [**setAgentMode**](docs/DefaultApi.md#setagentmode) | **POST** /agent | Change agent mode
 *DefaultApi* | [**startCollector**](docs/DefaultApi.md#startcollector) | **POST** /collector | Start inventory collection
+*DefaultApi* | [**startInspection**](docs/DefaultApi.md#startinspection) | **POST** /vms/inspector | Start inspection for VMs
 *DefaultApi* | [**stopCollector**](docs/DefaultApi.md#stopcollector) | **DELETE** /collector | Stop collection
 
 
@@ -71,12 +77,16 @@ Class | Method | HTTP request | Description
  - [Histogram](docs/Histogram.md)
  - [Host](docs/Host.md)
  - [Infra](docs/Infra.md)
+ - [InspectionStatus](docs/InspectionStatus.md)
+ - [InspectorStatus](docs/InspectorStatus.md)
  - [Inventory](docs/Inventory.md)
  - [InventoryData](docs/InventoryData.md)
  - [MigrationIssue](docs/MigrationIssue.md)
  - [Network](docs/Network.md)
  - [OsInfo](docs/OsInfo.md)
  - [VCenter](docs/VCenter.md)
+ - [VM](docs/VM.md)
+ - [VMListResponse](docs/VMListResponse.md)
  - [VMResourceBreakdown](docs/VMResourceBreakdown.md)
  - [VMs](docs/VMs.md)
 

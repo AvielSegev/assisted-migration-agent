@@ -5,16 +5,13 @@ import {
   DropdownItem,
   DropdownList,
   MenuToggle,
-  MenuToggleCheckbox,
   MenuToggleElement,
   Pagination,
   SearchInput,
   Toolbar,
   ToolbarContent,
-  ToolbarFilter,
   ToolbarGroup,
   ToolbarItem,
-  ToolbarToggleGroup,
 } from "@patternfly/react-core";
 import {
   Table,
@@ -30,31 +27,43 @@ import {
   EllipsisVIcon,
   ExclamationTriangleIcon,
   ExclamationCircleIcon,
+  CheckCircleIcon,
 } from "@patternfly/react-icons";
-import { VirtualMachine, VMStatus } from "./types";
+import type { VM } from "@generated/index";
 
 interface VMTableProps {
-  vms: VirtualMachine[];
+  vms: VM[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  loading: boolean;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
 }
 
-type SortableColumn = "name" | "status" | "datacenter" | "cluster" | "diskSizeGB" | "memorySizeGB";
+type SortableColumn = "name" | "vCenterState" | "datacenter" | "cluster" | "diskSize" | "memory";
 
-const statusLabels: Record<VMStatus, string> = {
-  "migratable": "Migratable",
-  "migratable-with-warnings": "With warnings",
-  "not-migratable": "Not migratable",
+const statusLabels: Record<string, string> = {
+  "green": "Migratable",
+  "yellow": "With warnings",
+  "red": "Not migratable",
 };
 
-const VMTable: React.FC<VMTableProps> = ({ vms }) => {
-  // Pagination state
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(20);
-
+const VMTable: React.FC<VMTableProps> = ({
+  vms,
+  total,
+  page,
+  pageSize,
+  loading,
+  onPageChange,
+  onPageSizeChange,
+}) => {
   // Search state
   const [searchValue, setSearchValue] = useState("");
 
   // Filter state
-  const [statusFilter, setStatusFilter] = useState<VMStatus[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
 
   // Sort state
@@ -70,14 +79,14 @@ const VMTable: React.FC<VMTableProps> = ({ vms }) => {
   // Column definitions
   const columns: { key: SortableColumn; label: string; sortable: boolean }[] = [
     { key: "name", label: "Name", sortable: true },
-    { key: "status", label: "Status", sortable: true },
+    { key: "vCenterState", label: "Status", sortable: true },
     { key: "datacenter", label: "Data center", sortable: true },
     { key: "cluster", label: "Cluster", sortable: true },
-    { key: "diskSizeGB", label: "Disk size", sortable: true },
-    { key: "memorySizeGB", label: "Memory size", sortable: true },
+    { key: "diskSize", label: "Disk size", sortable: true },
+    { key: "memory", label: "Memory size", sortable: true },
   ];
 
-  // Filter and search VMs
+  // Filter and search VMs (client-side filtering within the current page)
   const filteredVMs = useMemo(() => {
     return vms.filter((vm) => {
       // Search filter
@@ -85,7 +94,7 @@ const VMTable: React.FC<VMTableProps> = ({ vms }) => {
         return false;
       }
       // Status filter
-      if (statusFilter.length > 0 && !statusFilter.includes(vm.status)) {
+      if (statusFilter.length > 0 && !statusFilter.includes(vm.vCenterState)) {
         return false;
       }
       return true;
@@ -106,18 +115,9 @@ const VMTable: React.FC<VMTableProps> = ({ vms }) => {
           ? aValue.localeCompare(bValue)
           : bValue.localeCompare(aValue);
       }
-      if (typeof aValue === "number" && typeof bValue === "number") {
-        return activeSortDirection === "asc" ? aValue - bValue : bValue - aValue;
-      }
       return 0;
     });
   }, [filteredVMs, activeSortIndex, activeSortDirection, columns]);
-
-  // Paginate VMs
-  const paginatedVMs = useMemo(() => {
-    const start = (page - 1) * perPage;
-    return sortedVMs.slice(start, start + perPage);
-  }, [sortedVMs, page, perPage]);
 
   // Sort handler
   const getSortParams = (columnIndex: number): ThProps["sort"] => ({
@@ -133,22 +133,22 @@ const VMTable: React.FC<VMTableProps> = ({ vms }) => {
   });
 
   // Selection handlers
-  const isAllSelected = paginatedVMs.length > 0 && paginatedVMs.every((vm) => selectedVMs.has(vm.id));
-  const isSomeSelected = paginatedVMs.some((vm) => selectedVMs.has(vm.id));
+  const isAllSelected = sortedVMs.length > 0 && sortedVMs.every((vm) => selectedVMs.has(vm.id));
+  const isSomeSelected = sortedVMs.some((vm) => selectedVMs.has(vm.id));
 
   const onSelectAll = (isSelected: boolean) => {
     if (isSelected) {
       const newSelected = new Set(selectedVMs);
-      paginatedVMs.forEach((vm) => newSelected.add(vm.id));
+      sortedVMs.forEach((vm) => newSelected.add(vm.id));
       setSelectedVMs(newSelected);
     } else {
       const newSelected = new Set(selectedVMs);
-      paginatedVMs.forEach((vm) => newSelected.delete(vm.id));
+      sortedVMs.forEach((vm) => newSelected.delete(vm.id));
       setSelectedVMs(newSelected);
     }
   };
 
-  const onSelectVM = (vm: VirtualMachine, isSelected: boolean) => {
+  const onSelectVM = (vm: VM, isSelected: boolean) => {
     const newSelected = new Set(selectedVMs);
     if (isSelected) {
       newSelected.add(vm.id);
@@ -159,7 +159,7 @@ const VMTable: React.FC<VMTableProps> = ({ vms }) => {
   };
 
   // Status filter handlers
-  const onStatusFilterSelect = (status: VMStatus) => {
+  const onStatusFilterSelect = (status: string) => {
     if (statusFilter.includes(status)) {
       setStatusFilter(statusFilter.filter((s) => s !== status));
     } else {
@@ -172,65 +172,37 @@ const VMTable: React.FC<VMTableProps> = ({ vms }) => {
   };
 
   // Render status cell with icon
-  const renderStatus = (vm: VirtualMachine) => {
-    const hasWarnings = vm.issues.some((i) => i.type === "warning");
-    const hasErrors = vm.issues.some((i) => i.type === "error");
+  const renderStatus = (vm: VM) => {
+    const state = vm.vCenterState;
+    const hasIssues = vm.issues.length > 0;
 
     return (
       <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        {hasErrors && (
+        {state === "red" && (
           <ExclamationCircleIcon color="var(--pf-t--global--icon--color--status--danger--default)" />
         )}
-        {hasWarnings && !hasErrors && (
+        {state === "yellow" && (
           <ExclamationTriangleIcon color="var(--pf-t--global--icon--color--status--warning--default)" />
         )}
-        {statusLabels[vm.status]}
+        {state === "green" && !hasIssues && (
+          <CheckCircleIcon color="var(--pf-t--global--icon--color--status--success--default)" />
+        )}
+        {statusLabels[state] || state}
       </span>
     );
   };
 
   // Render issues column
-  const renderIssues = (vm: VirtualMachine) => {
+  const renderIssues = (vm: VM) => {
     if (vm.issues.length === 0) return "—";
-    return vm.issues.map((issue) => issue.message).join(", ");
+    return vm.issues.join(", ");
   };
-
-  // Format size
-  const formatSize = (sizeGB: number) => `${sizeGB}GB`;
 
   return (
     <div>
       {/* Toolbar */}
-      <Toolbar clearAllFilters={clearStatusFilter}>
+      <Toolbar>
         <ToolbarContent>
-          <ToolbarGroup variant="filter-group">
-            <ToolbarItem>
-              <Dropdown
-                isOpen={false}
-                onSelect={() => {}}
-                toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-                  <MenuToggle
-                    ref={toggleRef}
-                    isExpanded={false}
-                    splitButtonOptions={{
-                      items: [
-                        <MenuToggleCheckbox
-                          id="select-all"
-                          key="select-all"
-                          aria-label="Select all"
-                          isChecked={isAllSelected ? true : isSomeSelected ? null : false}
-                          onChange={(checked) => onSelectAll(checked)}
-                        />,
-                      ],
-                    }}
-                  />
-                )}
-              >
-                {/* Bulk selection options could go here */}
-              </Dropdown>
-            </ToolbarItem>
-          </ToolbarGroup>
-
           <ToolbarGroup variant="filter-group">
             <ToolbarItem>
               <SearchInput
@@ -242,46 +214,35 @@ const VMTable: React.FC<VMTableProps> = ({ vms }) => {
               />
             </ToolbarItem>
 
-            <ToolbarToggleGroup toggleIcon={<FilterIcon />} breakpoint="xl">
-              <ToolbarFilter
-                chips={statusFilter.map((s) => statusLabels[s])}
-                deleteChip={(_category, chip) => {
-                  const status = Object.entries(statusLabels).find(
-                    ([, label]) => label === chip
-                  )?.[0] as VMStatus;
-                  if (status) onStatusFilterSelect(status);
-                }}
-                deleteChipGroup={clearStatusFilter}
-                categoryName="Status"
+            <ToolbarItem>
+              <Dropdown
+                isOpen={isStatusFilterOpen}
+                onSelect={() => {}}
+                onOpenChange={setIsStatusFilterOpen}
+                toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+                  <MenuToggle
+                    ref={toggleRef}
+                    onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)}
+                    isExpanded={isStatusFilterOpen}
+                  >
+                    <FilterIcon /> Status
+                    {statusFilter.length > 0 && ` (${statusFilter.length})`}
+                  </MenuToggle>
+                )}
               >
-                <Dropdown
-                  isOpen={isStatusFilterOpen}
-                  onSelect={() => {}}
-                  onOpenChange={setIsStatusFilterOpen}
-                  toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-                    <MenuToggle
-                      ref={toggleRef}
-                      onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)}
-                      isExpanded={isStatusFilterOpen}
+                <DropdownList>
+                  {Object.entries(statusLabels).map(([status, label]) => (
+                    <DropdownItem
+                      key={status}
+                      onClick={() => onStatusFilterSelect(status)}
+                      isSelected={statusFilter.includes(status)}
                     >
-                      <FilterIcon /> Filters
-                    </MenuToggle>
-                  )}
-                >
-                  <DropdownList>
-                    {(Object.keys(statusLabels) as VMStatus[]).map((status) => (
-                      <DropdownItem
-                        key={status}
-                        onClick={() => onStatusFilterSelect(status)}
-                        isSelected={statusFilter.includes(status)}
-                      >
-                        {statusLabels[status]}
-                      </DropdownItem>
-                    ))}
-                  </DropdownList>
-                </Dropdown>
-              </ToolbarFilter>
-            </ToolbarToggleGroup>
+                      {label}
+                    </DropdownItem>
+                  ))}
+                </DropdownList>
+              </Dropdown>
+            </ToolbarItem>
           </ToolbarGroup>
 
           <ToolbarGroup>
@@ -294,13 +255,12 @@ const VMTable: React.FC<VMTableProps> = ({ vms }) => {
 
           <ToolbarItem variant="pagination" align={{ default: "alignEnd" }}>
             <Pagination
-              itemCount={sortedVMs.length}
-              perPage={perPage}
+              itemCount={total}
+              perPage={pageSize}
               page={page}
-              onSetPage={(_event, newPage) => setPage(newPage)}
+              onSetPage={(_event, newPage) => onPageChange(newPage)}
               onPerPageSelect={(_event, newPerPage) => {
-                setPerPage(newPerPage);
-                setPage(1);
+                onPageSizeChange(newPerPage);
               }}
               variant="top"
               isCompact
@@ -327,49 +287,63 @@ const VMTable: React.FC<VMTableProps> = ({ vms }) => {
           </Tr>
         </Thead>
         <Tbody>
-          {paginatedVMs.map((vm) => (
-            <Tr key={vm.id}>
-              <Td
-                select={{
-                  rowIndex: 0,
-                  onSelect: (_event, isSelected) => onSelectVM(vm, isSelected),
-                  isSelected: selectedVMs.has(vm.id),
-                }}
-              />
-              <Td dataLabel="Name">{vm.name}</Td>
-              <Td dataLabel="Status">{renderStatus(vm)}</Td>
-              <Td dataLabel="Data center">{vm.datacenter}</Td>
-              <Td dataLabel="Cluster">{vm.cluster}</Td>
-              <Td dataLabel="Disk size">{formatSize(vm.diskSizeGB)}</Td>
-              <Td dataLabel="Memory size">{formatSize(vm.memorySizeGB)}</Td>
-              <Td dataLabel="Issues">{renderIssues(vm)}</Td>
-              <Td isActionCell>
-                <Dropdown
-                  isOpen={openActionMenuId === vm.id}
-                  onSelect={() => setOpenActionMenuId(null)}
-                  onOpenChange={(isOpen) => setOpenActionMenuId(isOpen ? vm.id : null)}
-                  toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-                    <MenuToggle
-                      ref={toggleRef}
-                      variant="plain"
-                      onClick={() =>
-                        setOpenActionMenuId(openActionMenuId === vm.id ? null : vm.id)
-                      }
-                      isExpanded={openActionMenuId === vm.id}
-                    >
-                      <EllipsisVIcon />
-                    </MenuToggle>
-                  )}
-                  popperProps={{ position: "right" }}
-                >
-                  <DropdownList>
-                    <DropdownItem key="inspect">Send to deep inspection</DropdownItem>
-                    <DropdownItem key="details">View details</DropdownItem>
-                  </DropdownList>
-                </Dropdown>
+          {loading ? (
+            <Tr>
+              <Td colSpan={columns.length + 3} style={{ textAlign: "center" }}>
+                Loading...
               </Td>
             </Tr>
-          ))}
+          ) : sortedVMs.length === 0 ? (
+            <Tr>
+              <Td colSpan={columns.length + 3} style={{ textAlign: "center" }}>
+                No virtual machines found
+              </Td>
+            </Tr>
+          ) : (
+            sortedVMs.map((vm) => (
+              <Tr key={vm.id}>
+                <Td
+                  select={{
+                    rowIndex: 0,
+                    onSelect: (_event, isSelected) => onSelectVM(vm, isSelected),
+                    isSelected: selectedVMs.has(vm.id),
+                  }}
+                />
+                <Td dataLabel="Name">{vm.name}</Td>
+                <Td dataLabel="Status">{renderStatus(vm)}</Td>
+                <Td dataLabel="Data center">{vm.datacenter}</Td>
+                <Td dataLabel="Cluster">{vm.cluster}</Td>
+                <Td dataLabel="Disk size">{vm.diskSize}</Td>
+                <Td dataLabel="Memory size">{vm.memory}</Td>
+                <Td dataLabel="Issues">{renderIssues(vm)}</Td>
+                <Td isActionCell>
+                  <Dropdown
+                    isOpen={openActionMenuId === vm.id}
+                    onSelect={() => setOpenActionMenuId(null)}
+                    onOpenChange={(isOpen) => setOpenActionMenuId(isOpen ? vm.id : null)}
+                    toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+                      <MenuToggle
+                        ref={toggleRef}
+                        variant="plain"
+                        onClick={() =>
+                          setOpenActionMenuId(openActionMenuId === vm.id ? null : vm.id)
+                        }
+                        isExpanded={openActionMenuId === vm.id}
+                      >
+                        <EllipsisVIcon />
+                      </MenuToggle>
+                    )}
+                    popperProps={{ position: "right" }}
+                  >
+                    <DropdownList>
+                      <DropdownItem key="inspect">Send to deep inspection</DropdownItem>
+                      <DropdownItem key="details">View details</DropdownItem>
+                    </DropdownList>
+                  </Dropdown>
+                </Td>
+              </Tr>
+            ))
+          )}
         </Tbody>
       </Table>
     </div>

@@ -142,13 +142,13 @@ paths:
             items:
               type: string
               enum:
-                - 0-10TB
-                - 11-20TB
-                - 21-50TB
-                - 50+TB
+                - 0-100GB
+                - 101-500GB
+                - 501-1000GB
+                - 1000+GB
           style: form
           explode: true
-          example: ["0-10TB", "11-20TB"]
+          example: ["0-100GB", "101-500GB"]
         - name: memorysize
           in: query
           description: Filter by memory size ranges (OR logic - matches VMs in any of the specified ranges)

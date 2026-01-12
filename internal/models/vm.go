@@ -11,7 +11,7 @@ type VM struct {
 	State             string
 	Datacenter        string
 	Cluster           string
-	DiskSize          int64 // in TB
+	DiskSize          int64 // in GB
 	Memory            int64 // in GB
 	Issues            []string
 	InspectionState   string
@@ -36,7 +36,7 @@ func NewVMFromForklift(vm vsphere.VM, clusterName, datacenterName string) VM {
 		State:      vm.PowerState,
 		Datacenter: datacenterName,
 		Cluster:    clusterName,
-		DiskSize:   int64(util.BytesToTB(diskSizeBytes)),
+		DiskSize:   int64(util.BytesToGB(diskSizeBytes)),
 		Memory:     int64(util.MBToGB(vm.MemoryMB)),
 		Issues:     issues,
 	}
