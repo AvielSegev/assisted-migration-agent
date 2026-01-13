@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strings"
 
+	srvErrors "github.com/kubev2v/assisted-migration-agent/pkg/errors"
+
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
@@ -121,6 +123,7 @@ func (h *Handler) GetVMs(c *gin.Context, params v1.GetVMsParams) {
 	// Map to API response
 	apiVMs := make([]v1.VM, 0, len(vms))
 	for _, vm := range vms {
+		vm.InspectionState, vm.InspectionError = v1.FlatStatus(h.inspectorSrv.GetVmStatus(vm.ID))
 		apiVMs = append(apiVMs, v1.NewVMFromModel(vm))
 	}
 
@@ -134,30 +137,76 @@ func (h *Handler) GetVMs(c *gin.Context, params v1.GetVMsParams) {
 
 // GetVMInspectionStatus returns the inspection status for a specific VM
 // (GET /vms/{id}/inspector)
-func (h *Handler) GetVMInspectionStatus(c *gin.Context, id int) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "not yet implemented"})
+func (h *Handler) GetVMInspectionStatus(c *gin.Context, id string) {
+	c.JSON(http.StatusOK, v1.NewInspectionStatus(v1.FlatStatus(h.inspectorSrv.GetVmStatus(id))))
+}
+
+// RemoveVMFromInspection removes VM from inspection queue
+// (DELETE /vms/{id}/inspector)
+func (h *Handler) RemoveVMFromInspection(c *gin.Context, id string) {
+	h.inspectorSrv.CancelVmsInspection([]string{id})
+	c.JSON(http.StatusOK, v1.NewInspectionStatus(v1.FlatStatus(h.inspectorSrv.GetVmStatus(id))))
 }
 
 // GetInspectorStatus returns the inspector status
 // (GET /vms/inspector)
 func (h *Handler) GetInspectorStatus(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "not yet implemented"})
+	c.JSON(http.StatusOK, v1.NewInspectorStatus(h.inspectorSrv.GetStatus()))
 }
 
 // StartInspection starts inspection for VMs
 // (POST /vms/inspector)
 func (h *Handler) StartInspection(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "not yet implemented"})
+	var vmsMoid v1.VMIdArray
+	if err := c.ShouldBindJSON(&vmsMoid); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	if len(vmsMoid) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no vms provided"})
+		return
+	}
+
+	// Start inspections (load creds, starts inspector async job)
+	if err := h.inspectorSrv.Start(c.Request.Context(), vmsMoid); err != nil {
+		switch err.(type) {
+		case *srvErrors.InspectorInProgressError:
+			c.JSON(http.StatusLocked, gin.H{"error": err.Error()})
+		default:
+			zap.S().Named("vm_handler").Errorw("failed to start inspector", "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start inspector"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusAccepted, v1.NewInspectorStatus(h.inspectorSrv.GetStatus()))
 }
 
 // AddVMsToInspection adds more VMs to inspection queue
 // (PATCH /vms/inspector)
 func (h *Handler) AddVMsToInspection(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "not yet implemented"})
+	var vmsMoid v1.VMIdArray
+	if err := c.ShouldBindJSON(&vmsMoid); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	if v1.NewInspectorStatus(h.inspectorSrv.GetStatus()).State != v1.InspectorStatusStateRunning {
+		c.JSON(http.StatusNotFound, gin.H{"error": "inspector not running"})
+		return
+	}
+
+	if err := h.inspectorSrv.AddMoreVms(vmsMoid); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusAccepted, v1.NewInspectorStatus(h.inspectorSrv.GetStatus()))
 }
 
-// RemoveVMsFromInspection removes VMs from inspection queue or stops inspector entirely
+// StopInspection stops inspector entirely
 // (DELETE /vms/inspector)
-func (h *Handler) RemoveVMsFromInspection(c *gin.Context) {
+func (h *Handler) StopInspection(c *gin.Context) {
 	c.JSON(http.StatusNotImplemented, gin.H{"error": "not yet implemented"})
 }

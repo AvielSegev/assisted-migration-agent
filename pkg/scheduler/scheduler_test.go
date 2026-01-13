@@ -37,7 +37,7 @@ var _ = Describe("Scheduler", func() {
 		})
 	})
 
-	Describe("Run work", func() {
+	Describe("Inspect work", func() {
 		It("should execute multiple work items", func() {
 			s = scheduler.NewScheduler(2)
 

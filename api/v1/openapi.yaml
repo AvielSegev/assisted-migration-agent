@@ -221,7 +221,7 @@ paths:
           required: true
           description: VM ID
           schema:
-            type: integer
+            type: string
       responses:
         '200':
           description: VM inspection status
@@ -231,6 +231,28 @@ paths:
                 $ref: '#/components/schemas/InspectionStatus'
         '404':
           description: VM not found
+        '500':
+          description: Internal server error
+    delete:
+      summary: Remove VM from inspection queue
+      operationId: removeVMFromInspection
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: VMs removed from queue
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InspectionStatus'
+        '400':
+          description: Invalid request
+        '404':
+          description: Inspector not running
         '500':
           description: Internal server error
 
@@ -294,16 +316,8 @@ paths:
         '500':
           description: Internal server error
     delete:
-      summary: Remove VMs from inspection queue or stop inspector entirely
-      operationId: removeVMsFromInspection
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/VMIdArray'
-            example: [1236, 1237]
-        description: Optional array of VM IDs to remove from queue. If not provided, stops the inspector entirely.
+      summary: Stop inspector entirely
+      operationId: stopInspection
       responses:
         '200':
           description: VMs removed from queue
@@ -311,10 +325,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InspectorStatus'
-        '204':
-          description: Inspector stopped (when no request body provided)
-        '400':
-          description: Invalid request
         '404':
           description: Inspector not running
         '500':
@@ -400,7 +410,9 @@ components:
             - pending
             - running
             - completed
+            - canceled
             - error
+            - not_found
           description: Current inspection state
         error:
           type: string
@@ -485,6 +497,8 @@ components:
           enum:
             - ready
             - running
+            - canceled
+            - done
             - error
           description: Inspector state
         error:
@@ -494,5 +508,5 @@ components:
     VMIdArray:
       type: array
       items:
-        type: integer
-      description: Array of VM IDs
+        type: string
+      description: Array of VM Moid

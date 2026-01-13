@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kubev2v/assisted-migration-agent/pkg/vmware"
+
 	"github.com/ecordell/optgen/helpers"
 	"github.com/fatih/color"
 	"github.com/gin-gonic/gin"
@@ -109,12 +111,16 @@ func NewRunCommand(cfg *config.Configuration) *cobra.Command {
 			workBuilder := collectorv1.NewV1WorkBuilder(s, cfg.Agent.DataFolder, cfg.Agent.OpaPoliciesFolder)
 			collectorSrv := services.NewCollectorService(sched, workBuilder)
 
+			// create inspector service
+			inspectorWorkBuilder := vmware.NewInspectorWorkBuilder(s)
+			inspectorSrv := services.NewInspectorService(sched, inspectorWorkBuilder)
+
 			consoleSrv := services.NewConsoleService(cfg.Agent, sched, consoleClient, collectorSrv, s)
 			inventorySrv := services.NewInventoryService(s)
 			vmSrv := services.NewVMService(s)
 
 			// init handlers
-			h := handlers.New(consoleSrv, collectorSrv, inventorySrv, vmSrv)
+			h := handlers.New(consoleSrv, collectorSrv, inventorySrv, vmSrv, inspectorSrv)
 
 			srv, err := server.NewServer(cfg, func(router *gin.RouterGroup) {
 				v1.RegisterHandlers(router, h)

@@ -18,7 +18,7 @@ type RemoveSnapshotRequest struct {
 //   - VmMoid: the managed object ID of the virtual machine.
 //   - SnapshotName: the name to assign to the new snapshot.
 //   - Description: a description of the snapshot's purpose or content.
-//   - Memory: if true, includes the VM's memory state in the snapshot (for running VMs).
+//   - Memory: if true, includes the VM's memory state in the snapshot (for inspectVms VMs).
 //   - Quiesce: if true, attempts to quiesce the guest file system before snapshotting.
 type CreateSnapshotRequest struct {
 	VmMoid       string
