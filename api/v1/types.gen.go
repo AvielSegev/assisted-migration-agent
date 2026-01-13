@@ -35,17 +35,21 @@ const (
 
 // Defines values for InspectionStatusState.
 const (
+	InspectionStatusStateCanceled  InspectionStatusState = "canceled"
 	InspectionStatusStateCompleted InspectionStatusState = "completed"
 	InspectionStatusStateError     InspectionStatusState = "error"
+	InspectionStatusStateNotFound  InspectionStatusState = "not_found"
 	InspectionStatusStatePending   InspectionStatusState = "pending"
 	InspectionStatusStateRunning   InspectionStatusState = "running"
 )
 
 // Defines values for InspectorStatusState.
 const (
-	InspectorStatusStateError   InspectorStatusState = "error"
-	InspectorStatusStateReady   InspectorStatusState = "ready"
-	InspectorStatusStateRunning InspectorStatusState = "running"
+	InspectorStatusStateCanceled InspectorStatusState = "canceled"
+	InspectorStatusStateDone     InspectorStatusState = "done"
+	InspectorStatusStateError    InspectorStatusState = "error"
+	InspectorStatusStateReady    InspectorStatusState = "ready"
+	InspectorStatusStateRunning  InspectorStatusState = "running"
 )
 
 // AgentModeRequest defines model for AgentModeRequest.
@@ -145,8 +149,8 @@ type VM struct {
 	VCenterState string `json:"vCenterState"`
 }
 
-// VMIdArray Array of VM IDs
-type VMIdArray = []int
+// VMIdArray Array of VM Moid
+type VMIdArray = []string
 
 // VMListResponse defines model for VMListResponse.
 type VMListResponse struct {
@@ -202,9 +206,6 @@ type SetAgentModeJSONRequestBody = AgentModeRequest
 
 // StartCollectorJSONRequestBody defines body for StartCollector for application/json ContentType.
 type StartCollectorJSONRequestBody = CollectorStartRequest
-
-// RemoveVMsFromInspectionJSONRequestBody defines body for RemoveVMsFromInspection for application/json ContentType.
-type RemoveVMsFromInspectionJSONRequestBody = VMIdArray
 
 // AddVMsToInspectionJSONRequestBody defines body for AddVMsToInspection for application/json ContentType.
 type AddVMsToInspectionJSONRequestBody = VMIdArray

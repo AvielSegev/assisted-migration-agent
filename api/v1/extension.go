@@ -11,18 +11,6 @@ func (a *AgentStatus) FromModel(m models.AgentStatus) {
 
 // NewVMFromModel converts a models.VM to an API VM.
 func NewVMFromModel(vm models.VM) VM {
-	var inspectionState InspectionStatusState
-	switch vm.InspectionState {
-	case "completed":
-		inspectionState = InspectionStatusStateCompleted
-	case "running":
-		inspectionState = InspectionStatusStateRunning
-	case "error":
-		inspectionState = InspectionStatusStateError
-	default:
-		inspectionState = InspectionStatusStatePending
-	}
-
 	apiVM := VM{
 		Id:           vm.ID,
 		Name:         vm.Name,
@@ -32,13 +20,7 @@ func NewVMFromModel(vm models.VM) VM {
 		Memory:       vm.Memory,
 		VCenterState: vm.State,
 		Issues:       vm.Issues,
-		Inspection: InspectionStatus{
-			State: inspectionState,
-		},
-	}
-
-	if vm.InspectionError != "" {
-		apiVM.Inspection.Error = &vm.InspectionError
+		Inspection:   NewInspectionStatus(vm.InspectionState, vm.InspectionError),
 	}
 
 	return apiVM
@@ -79,4 +61,64 @@ func NewCollectorStatusWithError(status models.CollectorStatus, err error) Colle
 		c.Error = &errStr
 	}
 	return c
+}
+
+func NewInspectorStatus(status models.InspectorStatus) InspectorStatus {
+	var c InspectorStatus
+
+	switch status.State {
+	case models.InspectorStateReady:
+		c.State = InspectorStatusStateReady
+	case models.InspectorStateRunning, models.InspectorStateConnecting:
+		c.State = InspectorStatusStateRunning
+	case models.InspectorStateCancelled:
+		c.State = InspectorStatusStateCanceled
+	case models.InspectorStateDone:
+		c.State = InspectorStatusStateDone
+	case models.InspectorStateError:
+		c.State = InspectorStatusStateError
+	default:
+		c.State = InspectorStatusStateReady
+	}
+
+	if status.Error != nil {
+		e := status.Error.Error()
+		c.Error = &e
+	}
+
+	return c
+}
+
+func NewInspectionStatus(state string, err string) InspectionStatus {
+	var c InspectionStatus
+	switch state {
+	case models.InspectionStatePending.Value():
+		c.State = InspectionStatusStatePending
+	case models.InspectionStateRunning.Value():
+		c.State = InspectionStatusStateRunning
+	case models.InspectionStateCanceled.Value():
+		c.State = InspectionStatusStateCanceled
+	case models.InspectionStateCompleted.Value():
+		c.State = InspectionStatusStateCompleted
+	case models.InspectionStateError.Value():
+		c.State = InspectionStatusStateError
+	default:
+		c.State = InspectionStatusStateNotFound
+	}
+
+	if err != "" {
+		c.Error = &err
+	}
+
+	return c
+}
+
+func FlatStatus(s models.InspectionStatus) (string, string) {
+	var errStr string
+
+	if s.Error != nil {
+		errStr = s.Error.Error()
+	}
+
+	return s.State.Value(), errStr
 }

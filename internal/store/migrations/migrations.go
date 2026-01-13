@@ -36,7 +36,7 @@ func Run(ctx context.Context, db *sql.DB) error {
 		return fmt.Errorf("getting migration files: %w", err)
 	}
 
-	// Run pending migrations
+	// Inspect pending migrations
 	for _, file := range files {
 		version := extractVersion(file)
 		if version == 0 {

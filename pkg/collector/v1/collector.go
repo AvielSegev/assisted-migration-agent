@@ -125,7 +125,7 @@ func (b *Builder) Process(ctx context.Context, c collector.Collector) error {
 	}
 	vcenterInv := CreateBasicInventory(vms, infraData)
 
-	// Run the validation of VMs for vCenter-level
+	// Inspect the validation of VMs for vCenter-level
 	if err := b.validateVMs(ctx, vms); err != nil {
 		zap.S().Named("inventory").Warnf("At least one error during VMs validation: %v", err)
 	}

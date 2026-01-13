@@ -36,7 +36,7 @@ var _ = Describe("Migrations", func() {
 		}
 	})
 
-	Describe("Run", func() {
+	Describe("Inspect", func() {
 		It("should run all migrations successfully", func() {
 			err := migrations.Run(ctx, db)
 			Expect(err).NotTo(HaveOccurred())
@@ -67,7 +67,7 @@ var _ = Describe("Migrations", func() {
 		})
 
 		It("should be idempotent", func() {
-			// Run migrations twice
+			// Inspect migrations twice
 			err := migrations.Run(ctx, db)
 			Expect(err).NotTo(HaveOccurred())
 
