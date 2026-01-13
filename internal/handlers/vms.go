@@ -18,6 +18,18 @@ const (
 // GetVMs returns the list of VMs with filtering and pagination
 // (GET /vms)
 func (h *Handler) GetVMs(c *gin.Context, params v1.GetVMsParams) {
+	// Validate disk size range
+	if params.DiskSizeMin != nil && params.DiskSizeMax != nil && *params.DiskSizeMin > *params.DiskSizeMax {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "diskSizeMin cannot be greater than diskSizeMax"})
+		return
+	}
+
+	// Validate memory size range
+	if params.MemorySizeMin != nil && params.MemorySizeMax != nil && *params.MemorySizeMin > *params.MemorySizeMax {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "memorySizeMin cannot be greater than memorySizeMax"})
+		return
+	}
+
 	// Parse pagination
 	page := 1
 	if params.Page != nil && *params.Page > 0 {
@@ -49,14 +61,20 @@ func (h *Handler) GetVMs(c *gin.Context, params v1.GetVMsParams) {
 	if params.Issues != nil {
 		svcParams.Issues = *params.Issues
 	}
-	if params.Disksize != nil {
-		svcParams.DiskRanges = v1.ParseDiskSizeRanges(*params.Disksize)
+	if params.DiskSizeMin != nil {
+		svcParams.DiskSizeMin = params.DiskSizeMin
 	}
-	if params.Memorysize != nil {
-		svcParams.MemRanges = v1.ParseMemorySizeRanges(*params.Memorysize)
+	if params.DiskSizeMax != nil {
+		svcParams.DiskSizeMax = params.DiskSizeMax
+	}
+	if params.MemorySizeMin != nil {
+		svcParams.MemorySizeMin = params.MemorySizeMin
+	}
+	if params.MemorySizeMax != nil {
+		svcParams.MemorySizeMax = params.MemorySizeMax
 	}
 
-	result, err := h.vmSrv.List(c.Request.Context(), svcParams)
+	vms, total, err := h.vmSrv.List(c.Request.Context(), svcParams)
 	if err != nil {
 		zap.S().Named("vm_handler").Errorw("failed to list VMs", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list VMs"})
@@ -64,21 +82,21 @@ func (h *Handler) GetVMs(c *gin.Context, params v1.GetVMsParams) {
 	}
 
 	// Calculate page count
-	pageCount := (result.Total + pageSize - 1) / pageSize
+	pageCount := (total + pageSize - 1) / pageSize
 	if pageCount == 0 {
 		pageCount = 1
 	}
 
 	// Map to API response
-	apiVMs := make([]v1.VM, 0, len(result.VMs))
-	for _, vm := range result.VMs {
+	apiVMs := make([]v1.VM, 0, len(vms))
+	for _, vm := range vms {
 		apiVMs = append(apiVMs, v1.NewVMFromModel(vm))
 	}
 
 	c.JSON(http.StatusOK, v1.VMListResponse{
 		Page:      page,
 		PageCount: pageCount,
-		Total:     result.Total,
+		Total:     total,
 		Vms:       apiVMs,
 	})
 }

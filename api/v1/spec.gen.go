@@ -170,19 +170,35 @@ func (siw *ServerInterfaceWrapper) GetVMs(c *gin.Context) {
 		return
 	}
 
-	// ------------- Optional query parameter "disksize" -------------
+	// ------------- Optional query parameter "diskSizeMin" -------------
 
-	err = runtime.BindQueryParameter("form", true, false, "disksize", c.Request.URL.Query(), &params.Disksize)
+	err = runtime.BindQueryParameter("form", true, false, "diskSizeMin", c.Request.URL.Query(), &params.DiskSizeMin)
 	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter disksize: %w", err), http.StatusBadRequest)
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter diskSizeMin: %w", err), http.StatusBadRequest)
 		return
 	}
 
-	// ------------- Optional query parameter "memorysize" -------------
+	// ------------- Optional query parameter "diskSizeMax" -------------
 
-	err = runtime.BindQueryParameter("form", true, false, "memorysize", c.Request.URL.Query(), &params.Memorysize)
+	err = runtime.BindQueryParameter("form", true, false, "diskSizeMax", c.Request.URL.Query(), &params.DiskSizeMax)
 	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter memorysize: %w", err), http.StatusBadRequest)
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter diskSizeMax: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "memorySizeMin" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "memorySizeMin", c.Request.URL.Query(), &params.MemorySizeMin)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter memorySizeMin: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "memorySizeMax" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "memorySizeMax", c.Request.URL.Query(), &params.MemorySizeMax)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter memorySizeMax: %w", err), http.StatusBadRequest)
 		return
 	}
 

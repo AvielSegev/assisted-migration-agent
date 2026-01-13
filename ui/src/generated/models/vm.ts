@@ -39,13 +39,13 @@ export interface VM {
      */
     'cluster': string;
     /**
-     * Total disk size (e.g., 12GB)
+     * Total disk size in MB
      */
-    'diskSize': string;
+    'diskSize': number;
     /**
-     * Memory size (e.g., 16GB)
+     * Memory size in MB
      */
-    'memory': string;
+    'memory': number;
     /**
      * List of issues found during inspection
      */

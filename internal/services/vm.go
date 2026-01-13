@@ -16,19 +16,16 @@ func NewVMService(st *store.Store) *VMService {
 }
 
 type VMListParams struct {
-	Datacenters []string
-	Clusters    []string
-	Statuses    []string
-	Issues      []string
-	DiskRanges  []SizeRange
-	MemRanges   []SizeRange
-	Limit       uint64
-	Offset      uint64
-}
-
-type SizeRange struct {
-	Min int64
-	Max int64 // 0 means no upper limit
+	Datacenters   []string
+	Clusters      []string
+	Statuses      []string
+	Issues        []string
+	DiskSizeMin   *int64
+	DiskSizeMax   *int64
+	MemorySizeMin *int64
+	MemorySizeMax *int64
+	Limit         uint64
+	Offset        uint64
 }
 
 type VMListResult struct {
@@ -36,32 +33,31 @@ type VMListResult struct {
 	Total int
 }
 
-func (s *VMService) List(ctx context.Context, params VMListParams) (*VMListResult, error) {
+func (s *VMService) List(ctx context.Context, params VMListParams) ([]models.VM, int, error) {
 	opts := s.buildListOptions(params)
 
 	vms, err := s.store.VM().List(ctx, opts...)
 	if err != nil {
-		return nil, err
+		return []models.VM{}, 0, err
 	}
 
 	// Get total count without pagination
 	countOpts := s.buildListOptions(VMListParams{
-		Datacenters: params.Datacenters,
-		Clusters:    params.Clusters,
-		Statuses:    params.Statuses,
-		Issues:      params.Issues,
-		DiskRanges:  params.DiskRanges,
-		MemRanges:   params.MemRanges,
+		Datacenters:   params.Datacenters,
+		Clusters:      params.Clusters,
+		Statuses:      params.Statuses,
+		Issues:        params.Issues,
+		DiskSizeMin:   params.DiskSizeMin,
+		DiskSizeMax:   params.DiskSizeMax,
+		MemorySizeMin: params.MemorySizeMin,
+		MemorySizeMax: params.MemorySizeMax,
 	})
 	total, err := s.store.VM().Count(ctx, countOpts...)
 	if err != nil {
-		return nil, err
+		return []models.VM{}, 0, err
 	}
 
-	return &VMListResult{
-		VMs:   vms,
-		Total: total,
-	}, nil
+	return vms, total, nil
 }
 
 func (s *VMService) buildListOptions(params VMListParams) []store.ListOption {
@@ -80,24 +76,30 @@ func (s *VMService) buildListOptions(params VMListParams) []store.ListOption {
 		opts = append(opts, store.ByIssues(params.Issues...))
 	}
 
-	// Handle disk size ranges (OR logic between ranges)
-	for _, r := range params.DiskRanges {
-		if r.Max == 0 {
-			// No upper limit
-			opts = append(opts, store.ByDiskSizeRange(r.Min, 1<<62))
-		} else {
-			opts = append(opts, store.ByDiskSizeRange(r.Min, r.Max))
+	// Handle disk size filter (values in MB)
+	if params.DiskSizeMin != nil || params.DiskSizeMax != nil {
+		min := int64(0)
+		max := int64(1 << 62) // effectively no upper limit
+		if params.DiskSizeMin != nil {
+			min = *params.DiskSizeMin
 		}
+		if params.DiskSizeMax != nil {
+			max = *params.DiskSizeMax
+		}
+		opts = append(opts, store.ByDiskSizeRange(min, max))
 	}
 
-	// Handle memory size ranges (OR logic between ranges)
-	for _, r := range params.MemRanges {
-		if r.Max == 0 {
-			// No upper limit
-			opts = append(opts, store.ByMemorySizeRange(r.Min, 1<<62))
-		} else {
-			opts = append(opts, store.ByMemorySizeRange(r.Min, r.Max))
+	// Handle memory size filter (values in MB)
+	if params.MemorySizeMin != nil || params.MemorySizeMax != nil {
+		min := int64(0)
+		max := int64(1 << 62) // effectively no upper limit
+		if params.MemorySizeMin != nil {
+			min = *params.MemorySizeMin
 		}
+		if params.MemorySizeMax != nil {
+			max = *params.MemorySizeMax
+		}
+		opts = append(opts, store.ByMemorySizeRange(min, max))
 	}
 
 	if params.Limit > 0 {

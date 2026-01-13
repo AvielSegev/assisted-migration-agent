@@ -237,15 +237,17 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
          * @param {Array<string>} [issues] Filter by issues (OR logic - matches VMs with any of the specified issues)
          * @param {Array<string>} [datacenters] Filter by datacenters (OR logic - matches VMs in any of the specified datacenters)
          * @param {Array<string>} [clusters] Filter by clusters (OR logic - matches VMs in any of the specified clusters)
-         * @param {Array<GetVMsDisksizeEnum>} [disksize] Filter by disk size ranges (OR logic - matches VMs in any of the specified ranges)
-         * @param {Array<GetVMsMemorysizeEnum>} [memorysize] Filter by memory size ranges (OR logic - matches VMs in any of the specified ranges)
+         * @param {number} [diskSizeMin] Minimum disk size in MB
+         * @param {number} [diskSizeMax] Maximum disk size in MB
+         * @param {number} [memorySizeMin] Minimum memory size in MB
+         * @param {number} [memorySizeMax] Maximum memory size in MB
          * @param {Array<string>} [status] Filter by status (OR logic - matches VMs with any of the specified statuses)
          * @param {number} [page] Page number for pagination
          * @param {number} [pageSize] Number of items per page
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getVMs: async (issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, disksize?: Array<GetVMsDisksizeEnum>, memorysize?: Array<GetVMsMemorysizeEnum>, status?: Array<string>, page?: number, pageSize?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        getVMs: async (issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, diskSizeMin?: number, diskSizeMax?: number, memorySizeMin?: number, memorySizeMax?: number, status?: Array<string>, page?: number, pageSize?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/vms`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -270,12 +272,20 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
                 localVarQueryParameter['clusters'] = clusters;
             }
 
-            if (disksize) {
-                localVarQueryParameter['disksize'] = disksize;
+            if (diskSizeMin !== undefined) {
+                localVarQueryParameter['diskSizeMin'] = diskSizeMin;
             }
 
-            if (memorysize) {
-                localVarQueryParameter['memorysize'] = memorysize;
+            if (diskSizeMax !== undefined) {
+                localVarQueryParameter['diskSizeMax'] = diskSizeMax;
+            }
+
+            if (memorySizeMin !== undefined) {
+                localVarQueryParameter['memorySizeMin'] = memorySizeMin;
+            }
+
+            if (memorySizeMax !== undefined) {
+                localVarQueryParameter['memorySizeMax'] = memorySizeMax;
             }
 
             if (status) {
@@ -557,16 +567,18 @@ export const DefaultApiFp = function(configuration?: Configuration) {
          * @param {Array<string>} [issues] Filter by issues (OR logic - matches VMs with any of the specified issues)
          * @param {Array<string>} [datacenters] Filter by datacenters (OR logic - matches VMs in any of the specified datacenters)
          * @param {Array<string>} [clusters] Filter by clusters (OR logic - matches VMs in any of the specified clusters)
-         * @param {Array<GetVMsDisksizeEnum>} [disksize] Filter by disk size ranges (OR logic - matches VMs in any of the specified ranges)
-         * @param {Array<GetVMsMemorysizeEnum>} [memorysize] Filter by memory size ranges (OR logic - matches VMs in any of the specified ranges)
+         * @param {number} [diskSizeMin] Minimum disk size in MB
+         * @param {number} [diskSizeMax] Maximum disk size in MB
+         * @param {number} [memorySizeMin] Minimum memory size in MB
+         * @param {number} [memorySizeMax] Maximum memory size in MB
          * @param {Array<string>} [status] Filter by status (OR logic - matches VMs with any of the specified statuses)
          * @param {number} [page] Page number for pagination
          * @param {number} [pageSize] Number of items per page
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getVMs(issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, disksize?: Array<GetVMsDisksizeEnum>, memorysize?: Array<GetVMsMemorysizeEnum>, status?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<VMListResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getVMs(issues, datacenters, clusters, disksize, memorysize, status, page, pageSize, options);
+        async getVMs(issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, diskSizeMin?: number, diskSizeMax?: number, memorySizeMin?: number, memorySizeMax?: number, status?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<VMListResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getVMs(issues, datacenters, clusters, diskSizeMin, diskSizeMax, memorySizeMin, memorySizeMax, status, page, pageSize, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['DefaultApi.getVMs']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -706,16 +718,18 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
          * @param {Array<string>} [issues] Filter by issues (OR logic - matches VMs with any of the specified issues)
          * @param {Array<string>} [datacenters] Filter by datacenters (OR logic - matches VMs in any of the specified datacenters)
          * @param {Array<string>} [clusters] Filter by clusters (OR logic - matches VMs in any of the specified clusters)
-         * @param {Array<GetVMsDisksizeEnum>} [disksize] Filter by disk size ranges (OR logic - matches VMs in any of the specified ranges)
-         * @param {Array<GetVMsMemorysizeEnum>} [memorysize] Filter by memory size ranges (OR logic - matches VMs in any of the specified ranges)
+         * @param {number} [diskSizeMin] Minimum disk size in MB
+         * @param {number} [diskSizeMax] Maximum disk size in MB
+         * @param {number} [memorySizeMin] Minimum memory size in MB
+         * @param {number} [memorySizeMax] Maximum memory size in MB
          * @param {Array<string>} [status] Filter by status (OR logic - matches VMs with any of the specified statuses)
          * @param {number} [page] Page number for pagination
          * @param {number} [pageSize] Number of items per page
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getVMs(issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, disksize?: Array<GetVMsDisksizeEnum>, memorysize?: Array<GetVMsMemorysizeEnum>, status?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<VMListResponse> {
-            return localVarFp.getVMs(issues, datacenters, clusters, disksize, memorysize, status, page, pageSize, options).then((request) => request(axios, basePath));
+        getVMs(issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, diskSizeMin?: number, diskSizeMax?: number, memorySizeMin?: number, memorySizeMax?: number, status?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<VMListResponse> {
+            return localVarFp.getVMs(issues, datacenters, clusters, diskSizeMin, diskSizeMax, memorySizeMin, memorySizeMax, status, page, pageSize, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -829,15 +843,17 @@ export interface DefaultApiInterface {
      * @param {Array<string>} [issues] Filter by issues (OR logic - matches VMs with any of the specified issues)
      * @param {Array<string>} [datacenters] Filter by datacenters (OR logic - matches VMs in any of the specified datacenters)
      * @param {Array<string>} [clusters] Filter by clusters (OR logic - matches VMs in any of the specified clusters)
-     * @param {Array<GetVMsDisksizeEnum>} [disksize] Filter by disk size ranges (OR logic - matches VMs in any of the specified ranges)
-     * @param {Array<GetVMsMemorysizeEnum>} [memorysize] Filter by memory size ranges (OR logic - matches VMs in any of the specified ranges)
+     * @param {number} [diskSizeMin] Minimum disk size in MB
+     * @param {number} [diskSizeMax] Maximum disk size in MB
+     * @param {number} [memorySizeMin] Minimum memory size in MB
+     * @param {number} [memorySizeMax] Maximum memory size in MB
      * @param {Array<string>} [status] Filter by status (OR logic - matches VMs with any of the specified statuses)
      * @param {number} [page] Page number for pagination
      * @param {number} [pageSize] Number of items per page
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getVMs(issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, disksize?: Array<GetVMsDisksizeEnum>, memorysize?: Array<GetVMsMemorysizeEnum>, status?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<VMListResponse>;
+    getVMs(issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, diskSizeMin?: number, diskSizeMax?: number, memorySizeMin?: number, memorySizeMax?: number, status?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<VMListResponse>;
 
     /**
      * 
@@ -957,16 +973,18 @@ export class DefaultApi extends BaseAPI implements DefaultApiInterface {
      * @param {Array<string>} [issues] Filter by issues (OR logic - matches VMs with any of the specified issues)
      * @param {Array<string>} [datacenters] Filter by datacenters (OR logic - matches VMs in any of the specified datacenters)
      * @param {Array<string>} [clusters] Filter by clusters (OR logic - matches VMs in any of the specified clusters)
-     * @param {Array<GetVMsDisksizeEnum>} [disksize] Filter by disk size ranges (OR logic - matches VMs in any of the specified ranges)
-     * @param {Array<GetVMsMemorysizeEnum>} [memorysize] Filter by memory size ranges (OR logic - matches VMs in any of the specified ranges)
+     * @param {number} [diskSizeMin] Minimum disk size in MB
+     * @param {number} [diskSizeMax] Maximum disk size in MB
+     * @param {number} [memorySizeMin] Minimum memory size in MB
+     * @param {number} [memorySizeMax] Maximum memory size in MB
      * @param {Array<string>} [status] Filter by status (OR logic - matches VMs with any of the specified statuses)
      * @param {number} [page] Page number for pagination
      * @param {number} [pageSize] Number of items per page
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public getVMs(issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, disksize?: Array<GetVMsDisksizeEnum>, memorysize?: Array<GetVMsMemorysizeEnum>, status?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig) {
-        return DefaultApiFp(this.configuration).getVMs(issues, datacenters, clusters, disksize, memorysize, status, page, pageSize, options).then((request) => request(this.axios, this.basePath));
+    public getVMs(issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, diskSizeMin?: number, diskSizeMax?: number, memorySizeMin?: number, memorySizeMax?: number, status?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).getVMs(issues, datacenters, clusters, diskSizeMin, diskSizeMax, memorySizeMin, memorySizeMax, status, page, pageSize, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -1024,18 +1042,3 @@ export class DefaultApi extends BaseAPI implements DefaultApiInterface {
     }
 }
 
-export enum GetVMsDisksizeEnum {
-    _0100Gb = '0-100GB',
-    _101500Gb = '101-500GB',
-    _5011000Gb = '501-1000GB',
-    _1000Gb = '1000+GB'
-}
-export enum GetVMsMemorysizeEnum {
-    _04Gb = '0-4GB',
-    _516Gb = '5-16GB',
-    _1732Gb = '17-32GB',
-    _3364Gb = '33-64GB',
-    _65128Gb = '65-128GB',
-    _129256Gb = '129-256GB',
-    _256Gb = '256+GB'
-}

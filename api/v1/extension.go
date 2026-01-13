@@ -1,10 +1,7 @@
 package v1
 
 import (
-	"fmt"
-
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
-	"github.com/kubev2v/assisted-migration-agent/internal/services"
 )
 
 func (a *AgentStatus) FromModel(m models.AgentStatus) {
@@ -31,8 +28,8 @@ func NewVMFromModel(vm models.VM) VM {
 		Name:         vm.Name,
 		Cluster:      vm.Cluster,
 		Datacenter:   vm.Datacenter,
-		DiskSize:     fmt.Sprintf("%dGB", vm.DiskSize),
-		Memory:       fmt.Sprintf("%dGB", vm.Memory),
+		DiskSize:     vm.DiskSize,
+		Memory:       vm.Memory,
 		VCenterState: vm.State,
 		Issues:       vm.Issues,
 		Inspection: InspectionStatus{
@@ -45,48 +42,6 @@ func NewVMFromModel(vm models.VM) VM {
 	}
 
 	return apiVM
-}
-
-// ParseDiskSizeRanges converts API disk size params to service ranges (in GB).
-func ParseDiskSizeRanges(ranges []GetVMsParamsDisksize) []services.SizeRange {
-	var result []services.SizeRange
-	for _, r := range ranges {
-		switch r {
-		case N0100GB:
-			result = append(result, services.SizeRange{Min: 0, Max: 100})
-		case N101500GB:
-			result = append(result, services.SizeRange{Min: 101, Max: 500})
-		case N5011000GB:
-			result = append(result, services.SizeRange{Min: 501, Max: 1000})
-		case N1000GB:
-			result = append(result, services.SizeRange{Min: 1000, Max: 0})
-		}
-	}
-	return result
-}
-
-// ParseMemorySizeRanges converts API memory size params to service ranges.
-func ParseMemorySizeRanges(ranges []GetVMsParamsMemorysize) []services.SizeRange {
-	var result []services.SizeRange
-	for _, r := range ranges {
-		switch r {
-		case N04GB:
-			result = append(result, services.SizeRange{Min: 0, Max: 4})
-		case N516GB:
-			result = append(result, services.SizeRange{Min: 5, Max: 16})
-		case N1732GB:
-			result = append(result, services.SizeRange{Min: 17, Max: 32})
-		case N3364GB:
-			result = append(result, services.SizeRange{Min: 33, Max: 64})
-		case N65128GB:
-			result = append(result, services.SizeRange{Min: 65, Max: 128})
-		case N129256GB:
-			result = append(result, services.SizeRange{Min: 129, Max: 256})
-		case N256GB:
-			result = append(result, services.SizeRange{Min: 256, Max: 0})
-		}
-	}
-	return result
 }
 
 func NewCollectorStatus(status models.CollectorStatus) CollectorStatus {

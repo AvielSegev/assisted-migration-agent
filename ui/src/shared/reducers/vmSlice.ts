@@ -9,6 +9,10 @@ export interface VMFilters {
   clusters?: string[];
   status?: string[];
   issues?: string[];
+  diskSizeMin?: number;
+  diskSizeMax?: number;
+  memorySizeMin?: number;
+  memorySizeMax?: number;
 }
 
 interface VMState {
@@ -54,8 +58,10 @@ export const fetchVMs = createAsyncThunk(
         filters.issues,
         filters.datacenters,
         filters.clusters,
-        undefined, // disksize
-        undefined, // memorysize
+        filters.diskSizeMin,
+        filters.diskSizeMax,
+        filters.memorySizeMin,
+        filters.memorySizeMax,
         filters.status,
         page,
         pageSize

@@ -317,8 +317,10 @@ const apiInstance = new DefaultApi(configuration);
 let issues: Array<string>; //Filter by issues (OR logic - matches VMs with any of the specified issues) (optional) (default to undefined)
 let datacenters: Array<string>; //Filter by datacenters (OR logic - matches VMs in any of the specified datacenters) (optional) (default to undefined)
 let clusters: Array<string>; //Filter by clusters (OR logic - matches VMs in any of the specified clusters) (optional) (default to undefined)
-let disksize: Array<'0-100GB' | '101-500GB' | '501-1000GB' | '1000+GB'>; //Filter by disk size ranges (OR logic - matches VMs in any of the specified ranges) (optional) (default to undefined)
-let memorysize: Array<'0-4GB' | '5-16GB' | '17-32GB' | '33-64GB' | '65-128GB' | '129-256GB' | '256+GB'>; //Filter by memory size ranges (OR logic - matches VMs in any of the specified ranges) (optional) (default to undefined)
+let diskSizeMin: number; //Minimum disk size in MB (optional) (default to undefined)
+let diskSizeMax: number; //Maximum disk size in MB (optional) (default to undefined)
+let memorySizeMin: number; //Minimum memory size in MB (optional) (default to undefined)
+let memorySizeMax: number; //Maximum memory size in MB (optional) (default to undefined)
 let status: Array<string>; //Filter by status (OR logic - matches VMs with any of the specified statuses) (optional) (default to undefined)
 let page: number; //Page number for pagination (optional) (default to 1)
 let pageSize: number; //Number of items per page (optional) (default to undefined)
@@ -327,8 +329,10 @@ const { status, data } = await apiInstance.getVMs(
     issues,
     datacenters,
     clusters,
-    disksize,
-    memorysize,
+    diskSizeMin,
+    diskSizeMax,
+    memorySizeMin,
+    memorySizeMax,
     status,
     page,
     pageSize
@@ -342,8 +346,10 @@ const { status, data } = await apiInstance.getVMs(
 | **issues** | **Array&lt;string&gt;** | Filter by issues (OR logic - matches VMs with any of the specified issues) | (optional) defaults to undefined|
 | **datacenters** | **Array&lt;string&gt;** | Filter by datacenters (OR logic - matches VMs in any of the specified datacenters) | (optional) defaults to undefined|
 | **clusters** | **Array&lt;string&gt;** | Filter by clusters (OR logic - matches VMs in any of the specified clusters) | (optional) defaults to undefined|
-| **disksize** | **Array<&#39;0-100GB&#39; &#124; &#39;101-500GB&#39; &#124; &#39;501-1000GB&#39; &#124; &#39;1000+GB&#39;>** | Filter by disk size ranges (OR logic - matches VMs in any of the specified ranges) | (optional) defaults to undefined|
-| **memorysize** | **Array<&#39;0-4GB&#39; &#124; &#39;5-16GB&#39; &#124; &#39;17-32GB&#39; &#124; &#39;33-64GB&#39; &#124; &#39;65-128GB&#39; &#124; &#39;129-256GB&#39; &#124; &#39;256+GB&#39;>** | Filter by memory size ranges (OR logic - matches VMs in any of the specified ranges) | (optional) defaults to undefined|
+| **diskSizeMin** | [**number**] | Minimum disk size in MB | (optional) defaults to undefined|
+| **diskSizeMax** | [**number**] | Maximum disk size in MB | (optional) defaults to undefined|
+| **memorySizeMin** | [**number**] | Minimum memory size in MB | (optional) defaults to undefined|
+| **memorySizeMax** | [**number**] | Maximum memory size in MB | (optional) defaults to undefined|
 | **status** | **Array&lt;string&gt;** | Filter by status (OR logic - matches VMs with any of the specified statuses) | (optional) defaults to undefined|
 | **page** | [**number**] | Page number for pagination | (optional) defaults to 1|
 | **pageSize** | [**number**] | Number of items per page | (optional) defaults to undefined|
