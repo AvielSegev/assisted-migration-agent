@@ -9,6 +9,7 @@ All URIs are relative to */api/v1*
 |[**getCollectorStatus**](#getcollectorstatus) | **GET** /collector | Get collector status|
 |[**getInspectorStatus**](#getinspectorstatus) | **GET** /vms/inspector | Get inspector status|
 |[**getInventory**](#getinventory) | **GET** /inventory | Get collected inventory|
+|[**getVM**](#getvm) | **GET** /vms/{id} | Get details about a vm|
 |[**getVMInspectionStatus**](#getvminspectionstatus) | **GET** /vms/{id}/inspector | Get inspection status for a specific VM|
 |[**getVMs**](#getvms) | **GET** /vms | Get list of VMs with filtering and pagination|
 |[**removeVMsFromInspection**](#removevmsfrominspection) | **DELETE** /vms/inspector | Remove VMs from inspection queue or stop inspector entirely|
@@ -243,6 +244,58 @@ No authorization required
 |-------------|-------------|------------------|
 |**200** | Collected inventory |  -  |
 |**404** | Inventory not available |  -  |
+|**500** | Internal server error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getVM**
+> VMDetails getVM()
+
+
+### Example
+
+```typescript
+import {
+    DefaultApi,
+    Configuration
+} from 'migration-agent-api-client';
+
+const configuration = new Configuration();
+const apiInstance = new DefaultApi(configuration);
+
+let id: string; //VM id (default to undefined)
+
+const { status, data } = await apiInstance.getVM(
+    id
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **id** | [**string**] | VM id | defaults to undefined|
+
+
+### Return type
+
+**VMDetails**
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | VM details |  -  |
+|**404** | VM not found |  -  |
 |**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

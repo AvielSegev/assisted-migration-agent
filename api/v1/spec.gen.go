@@ -46,6 +46,9 @@ type ServerInterface interface {
 	// Start inspection for VMs
 	// (POST /vms/inspector)
 	StartInspection(c *gin.Context)
+	// Get details about a vm
+	// (GET /vms/{id})
+	GetVM(c *gin.Context, id string)
 	// Get inspection status for a specific VM
 	// (GET /vms/{id}/inspector)
 	GetVMInspectionStatus(c *gin.Context, id int)
@@ -296,6 +299,30 @@ func (siw *ServerInterfaceWrapper) StartInspection(c *gin.Context) {
 	siw.Handler.StartInspection(c)
 }
 
+// GetVM operation middleware
+func (siw *ServerInterfaceWrapper) GetVM(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetVM(c, id)
+}
+
 // GetVMInspectionStatus operation middleware
 func (siw *ServerInterfaceWrapper) GetVMInspectionStatus(c *gin.Context) {
 
@@ -358,5 +385,6 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/vms/inspector", wrapper.GetInspectorStatus)
 	router.PATCH(options.BaseURL+"/vms/inspector", wrapper.AddVMsToInspection)
 	router.POST(options.BaseURL+"/vms/inspector", wrapper.StartInspection)
+	router.GET(options.BaseURL+"/vms/:id", wrapper.GetVM)
 	router.GET(options.BaseURL+"/vms/:id/inspector", wrapper.GetVMInspectionStatus)
 }

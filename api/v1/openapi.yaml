@@ -211,6 +211,29 @@ paths:
         '500':
           description: Internal server error
 
+  /vms/{id}:
+    get:
+      summary: Get details about a vm
+      operationId: GetVM
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: VM id
+          schema:
+            type: string
+      responses:
+        '200':
+          description: VM details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VMDetails'
+        '404':
+          description: VM not found
+        '500':
+          description: Internal server error
+
   /vms/{id}/inspector:
     get:
       summary: Get inspection status for a specific VM
@@ -351,6 +374,7 @@ components:
             - connecting
             - connected
             - collecting
+            - parsing
             - collected
             - error
         error:
@@ -452,6 +476,188 @@ components:
           description: List of issues found during inspection
         inspection:
           $ref: '#/components/schemas/InspectionStatus'
+
+    VMDetails:
+      type: object
+      required:
+        - id
+        - name
+        - powerState
+        - connectionState
+        - cpuCount
+        - coresPerSocket
+        - memoryMB
+        - disks
+        - nics
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the VM in vCenter
+        name:
+          type: string
+          description: Display name of the VM
+        uuid:
+          type: string
+          description: Universally unique identifier assigned by vCenter
+        firmware:
+          type: string
+          description: Firmware type used by the VM (bios or efi)
+        powerState:
+          type: string
+          description: Current power state of the VM (poweredOn, poweredOff, or suspended)
+        connectionState:
+          type: string
+          description: State of the connection between vCenter and the VM's host (connected, disconnected, orphaned, or inaccessible)
+        host:
+          type: string
+          description: Reference to the ESXi host where the VM is running
+        folder:
+          type: string
+          description: Reference to the inventory folder containing the VM
+        cpuCount:
+          type: integer
+          format: int32
+          description: Total number of virtual CPUs allocated to the VM
+        coresPerSocket:
+          type: integer
+          format: int32
+          description: Number of CPU cores per virtual socket
+        cpuAffinity:
+          type: array
+          items:
+            type: integer
+            format: int32
+          description: List of physical CPU IDs the VM is pinned to for scheduling
+        memoryMB:
+          type: integer
+          format: int32
+          description: Amount of memory allocated to the VM in megabytes
+        guestName:
+          type: string
+          description: Full name of the guest operating system as reported by VMware Tools
+        guestId:
+          type: string
+          description: VMware identifier for the guest OS type (e.g., rhel8_64Guest)
+        hostName:
+          type: string
+          description: Hostname of the guest OS as reported by VMware Tools
+        ipAddress:
+          type: string
+          description: Primary IP address of the guest OS as reported by VMware Tools
+        storageUsed:
+          type: integer
+          format: int64
+          description: Total storage space consumed by the VM in bytes
+        isTemplate:
+          type: boolean
+          description: Whether the VM is a template rather than a regular VM
+        faultToleranceEnabled:
+          type: boolean
+          description: Whether VMware Fault Tolerance is enabled, which maintains a live shadow VM for instant failover
+        nestedHVEnabled:
+          type: boolean
+          description: Whether nested virtualization is enabled, allowing hypervisors to run inside the VM
+        toolsStatus:
+          type: string
+          description: Installation status of VMware Tools (toolsNotInstalled, toolsNotRunning, toolsOld, toolsOk)
+        toolsRunningStatus:
+          type: string
+          description: Whether VMware Tools is currently running in the guest OS
+        disks:
+          type: array
+          items:
+            $ref: '#/components/schemas/VMDisk'
+          description: List of virtual disks attached to the VM
+        nics:
+          type: array
+          items:
+            $ref: '#/components/schemas/VMNIC'
+          description: List of virtual network interface cards attached to the VM
+        devices:
+          type: array
+          items:
+            $ref: '#/components/schemas/VMDevice'
+          description: List of other virtual devices attached to the VM
+        guestNetworks:
+          type: array
+          items:
+            $ref: '#/components/schemas/GuestNetwork'
+          description: Network configuration inside the guest OS as reported by VMware Tools
+        issues:
+          type: array
+          items:
+            type: string
+          description: List of issue identifiers affecting this VM
+        inspection:
+          $ref: '#/components/schemas/InspectionStatus'
+          description: Current inspection status for this VM
+
+    VMDisk:
+      type: object
+      properties:
+        key:
+          type: integer
+          format: int32
+          description: Unique key identifying this disk within the VM
+        file:
+          type: string
+          description: Path to the VMDK file in the datastore
+        capacity:
+          type: integer
+          format: int64
+          description: Disk capacity in bytes
+        shared:
+          type: boolean
+          description: Whether this disk is shared between multiple VMs
+        rdm:
+          type: boolean
+          description: Whether this is a Raw Device Mapping (direct LUN access)
+        bus:
+          type: string
+          description: Bus type (e.g., scsi, ide, sata, nvme)
+        mode:
+          type: string
+          description: Disk mode (e.g., persistent, independent_persistent, independent_nonpersistent)
+
+    VMNIC:
+      type: object
+      properties:
+        mac:
+          type: string
+          description: MAC address of the virtual NIC
+        network:
+          type: string
+          description: Reference to the network this NIC is connected to
+        index:
+          type: integer
+          description: Index of the NIC within the VM
+
+    VMDevice:
+      type: object
+      properties:
+        kind:
+          type: string
+          description: Type of virtual device (e.g., cdrom, floppy, usb, serial, parallel)
+
+    GuestNetwork:
+      type: object
+      properties:
+        device:
+          type: string
+          description: Name of the network device inside the guest OS
+        mac:
+          type: string
+          description: MAC address as seen by the guest OS
+        ip:
+          type: string
+          description: IP address assigned to this interface
+        prefixLength:
+          type: integer
+          format: int32
+          description: Network prefix length (subnet mask in CIDR notation)
+        network:
+          type: string
+          description: Network name as reported by the guest OS
 
     VMListResponse:
       type: object

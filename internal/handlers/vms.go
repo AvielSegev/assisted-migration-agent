@@ -132,6 +132,12 @@ func (h *Handler) GetVMs(c *gin.Context, params v1.GetVMsParams) {
 	})
 }
 
+// GetVM returns details for a specific VM
+// (GET /vms/{id})
+func (h *Handler) GetVM(c *gin.Context, id string) {
+	c.JSON(http.StatusNotImplemented, gin.H{"error": "not yet implemented"})
+}
+
 // GetVMInspectionStatus returns the inspection status for a specific VM
 // (GET /vms/{id}/inspector)
 func (h *Handler) GetVMInspectionStatus(c *gin.Context, id int) {

@@ -10,6 +10,7 @@ type Store struct {
 	configuration *ConfigurationStore
 	inventory     *InventoryStore
 	vm            *VMStore
+	credentials   *CredentialsStore
 }
 
 func NewStore(db *sql.DB) *Store {
@@ -19,6 +20,7 @@ func NewStore(db *sql.DB) *Store {
 		configuration: NewConfigurationStore(qi),
 		inventory:     NewInventoryStore(qi),
 		vm:            NewVMStore(qi),
+		credentials:   NewCredentialsStore(qi),
 	}
 }
 
@@ -34,8 +36,16 @@ func (s *Store) VM() *VMStore {
 	return s.vm
 }
 
+func (s *Store) Credentials() *CredentialsStore {
+	return s.credentials
+}
+
 func (s *Store) Close() error {
 	return s.db.Close()
+}
+
+func (s *Store) DB() *sql.DB {
+	return s.db
 }
 
 type QueryInterceptor interface {

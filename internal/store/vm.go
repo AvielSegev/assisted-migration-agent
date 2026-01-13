@@ -17,16 +17,24 @@ func NewVMStore(db QueryInterceptor) *VMStore {
 
 func (s *VMStore) List(ctx context.Context, opts ...ListOption) ([]models.VM, error) {
 	builder := sq.Select(
-		"vms.id", "vms.name", "vms.state", "vms.datacenter", "vms.cluster",
-		"vms.disk_size", "vms.memory",
-		"vms.inspection_state", "vms.inspection_error", "vms.inspection_result",
-		"LIST(vms_issues.issue) as issues",
-	).From("vms").
-		LeftJoin("vms_issues ON vms.id = vms_issues.vm_id").
+		`vinfo."VM ID"`,
+		`vinfo."VM"`,
+		`vinfo."Powerstate"`,
+		`vinfo."Datacenter"`,
+		`vinfo."Cluster"`,
+		`vinfo."Total disk capacity MiB"`,
+		`vinfo."Memory"`,
+		`LIST(concerns."Label") as issues`,
+	).From("vinfo").
+		LeftJoin(`concerns ON vinfo."VM ID" = concerns."VM_ID"`).
 		GroupBy(
-			"vms.id", "vms.name", "vms.state", "vms.datacenter", "vms.cluster",
-			"vms.disk_size", "vms.memory",
-			"vms.inspection_state", "vms.inspection_error", "vms.inspection_result",
+			`vinfo."VM ID"`,
+			`vinfo."VM"`,
+			`vinfo."Powerstate"`,
+			`vinfo."Datacenter"`,
+			`vinfo."Cluster"`,
+			`vinfo."Total disk capacity MiB"`,
+			`vinfo."Memory"`,
 		)
 
 	for _, opt := range opts {
@@ -51,14 +59,11 @@ func (s *VMStore) List(ctx context.Context, opts ...ListOption) ([]models.VM, er
 		err := rows.Scan(
 			&vm.ID,
 			&vm.Name,
-			&vm.State,
+			&vm.PowerState,
 			&vm.Datacenter,
 			&vm.Cluster,
 			&vm.DiskSize,
-			&vm.Memory,
-			&vm.InspectionState,
-			&vm.InspectionError,
-			&vm.InspectionResults,
+			&vm.MemoryMB,
 			&issues,
 		)
 		if err != nil {
@@ -72,7 +77,7 @@ func (s *VMStore) List(ctx context.Context, opts ...ListOption) ([]models.VM, er
 }
 
 func (s *VMStore) Count(ctx context.Context, opts ...ListOption) (int, error) {
-	builder := sq.Select("COUNT(*)").From("vms")
+	builder := sq.Select("COUNT(*)").From("vinfo")
 
 	for _, opt := range opts {
 		builder = opt(builder)
@@ -88,115 +93,6 @@ func (s *VMStore) Count(ctx context.Context, opts ...ListOption) (int, error) {
 	return count, err
 }
 
-func (s *VMStore) Insert(ctx context.Context, vms ...models.VM) error {
-	if len(vms) == 0 {
-		return nil
-	}
-
-	vmBuilder := sq.Insert("vms").Columns(
-		"id", "name", "state", "datacenter", "cluster",
-		"disk_size", "memory",
-		"inspection_state", "inspection_error", "inspection_result",
-	)
-
-	var issueBuilder sq.InsertBuilder
-	hasIssues := false
-
-	for _, vm := range vms {
-		vmBuilder = vmBuilder.Values(
-			vm.ID,
-			vm.Name,
-			vm.State,
-			vm.Datacenter,
-			vm.Cluster,
-			vm.DiskSize,
-			vm.Memory,
-			vm.InspectionState,
-			vm.InspectionError,
-			vm.InspectionResults,
-		)
-
-		for _, issue := range vm.Issues {
-			if !hasIssues {
-				issueBuilder = sq.Insert("vms_issues").Columns("vm_id", "issue")
-				hasIssues = true
-			}
-			issueBuilder = issueBuilder.Values(vm.ID, issue)
-		}
-	}
-
-	query, args, err := vmBuilder.ToSql()
-	if err != nil {
-		return err
-	}
-
-	if _, err = s.db.ExecContext(ctx, query, args...); err != nil {
-		return err
-	}
-
-	if hasIssues {
-		query, args, err = issueBuilder.ToSql()
-		if err != nil {
-			return err
-		}
-		if _, err = s.db.ExecContext(ctx, query, args...); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (s *VMStore) Update(ctx context.Context, vm models.VM) error {
-	builder := sq.Update("vms").
-		Set("name", vm.Name).
-		Set("state", vm.State).
-		Set("datacenter", vm.Datacenter).
-		Set("cluster", vm.Cluster).
-		Set("disk_size", vm.DiskSize).
-		Set("memory", vm.Memory).
-		Set("inspection_state", vm.InspectionState).
-		Set("inspection_error", vm.InspectionError).
-		Set("inspection_result", vm.InspectionResults).
-		Where(sq.Eq{"id": vm.ID})
-
-	query, args, err := builder.ToSql()
-	if err != nil {
-		return err
-	}
-
-	if _, err = s.db.ExecContext(ctx, query, args...); err != nil {
-		return err
-	}
-
-	// Delete existing issues
-	delQuery, delArgs, err := sq.Delete("vms_issues").Where(sq.Eq{"vm_id": vm.ID}).ToSql()
-	if err != nil {
-		return err
-	}
-	if _, err = s.db.ExecContext(ctx, delQuery, delArgs...); err != nil {
-		return err
-	}
-
-	// Insert new issues
-	if len(vm.Issues) > 0 {
-		issueBuilder := sq.Insert("vms_issues").Columns("vm_id", "issue")
-		for _, issue := range vm.Issues {
-			issueBuilder = issueBuilder.Values(vm.ID, issue)
-		}
-
-		query, args, err = issueBuilder.ToSql()
-		if err != nil {
-			return err
-		}
-		if _, err = s.db.ExecContext(ctx, query, args...); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 type ListOption func(sq.SelectBuilder) sq.SelectBuilder
 
 func ByDatacenters(datacenters ...string) ListOption {
@@ -204,7 +100,7 @@ func ByDatacenters(datacenters ...string) ListOption {
 		if len(datacenters) == 0 {
 			return b
 		}
-		return b.Where(sq.Eq{"datacenter": datacenters})
+		return b.Where(sq.Eq{`vinfo."Datacenter"`: datacenters})
 	}
 }
 
@@ -213,7 +109,7 @@ func ByClusters(clusters ...string) ListOption {
 		if len(clusters) == 0 {
 			return b
 		}
-		return b.Where(sq.Eq{"cluster": clusters})
+		return b.Where(sq.Eq{`vinfo."Cluster"`: clusters})
 	}
 }
 
@@ -222,7 +118,7 @@ func ByStatus(statuses ...string) ListOption {
 		if len(statuses) == 0 {
 			return b
 		}
-		return b.Where(sq.Eq{"state": statuses})
+		return b.Where(sq.Eq{`vinfo."Powerstate"`: statuses})
 	}
 }
 
@@ -232,7 +128,7 @@ func ByIssues(issues ...string) ListOption {
 			return b
 		}
 		return b.Where(sq.Expr(
-			"id IN (SELECT vm_id FROM vms_issues WHERE issue IN (?))",
+			`vinfo."VM ID" IN (SELECT "VM_ID" FROM concerns WHERE "Label" IN (?))`,
 			issues,
 		))
 	}
@@ -241,8 +137,8 @@ func ByIssues(issues ...string) ListOption {
 func ByDiskSizeRange(min, max int64) ListOption {
 	return func(b sq.SelectBuilder) sq.SelectBuilder {
 		return b.Where(sq.And{
-			sq.GtOrEq{"disk_size": min},
-			sq.Lt{"disk_size": max},
+			sq.GtOrEq{`vinfo."Total disk capacity MiB"`: min},
+			sq.Lt{`vinfo."Total disk capacity MiB"`: max},
 		})
 	}
 }
@@ -250,8 +146,8 @@ func ByDiskSizeRange(min, max int64) ListOption {
 func ByMemorySizeRange(min, max int64) ListOption {
 	return func(b sq.SelectBuilder) sq.SelectBuilder {
 		return b.Where(sq.And{
-			sq.GtOrEq{"memory": min},
-			sq.Lt{"memory": max},
+			sq.GtOrEq{`vinfo."Memory"`: min},
+			sq.Lt{`vinfo."Memory"`: max},
 		})
 	}
 }
@@ -268,25 +164,23 @@ func WithOffset(offset uint64) ListOption {
 	}
 }
 
-// SortParam represents a single sort parameter with field name and direction.
 type SortParam struct {
 	Field string
 	Desc  bool
 }
 
-// apiFieldToDBColumn maps API field names to database column names
 var apiFieldToDBColumn = map[string]string{
-	"name":         "vms.name",
-	"vCenterState": "vms.state",
-	"datacenter":   "vms.datacenter",
-	"cluster":      "vms.cluster",
-	"diskSize":     "vms.disk_size",
-	"memory":       "vms.memory",
+	"name":         `vinfo."VM"`,
+	"vCenterState": `vinfo."Powerstate"`,
+	"datacenter":   `vinfo."Datacenter"`,
+	"cluster":      `vinfo."Cluster"`,
+	"diskSize":     `vinfo."Total disk capacity MiB"`,
+	"memory":       `vinfo."Memory"`,
 }
 
 func WithDefaultSort() ListOption {
 	return func(b sq.SelectBuilder) sq.SelectBuilder {
-		return b.OrderBy("vms.id")
+		return b.OrderBy(`vinfo."VM ID"`)
 	}
 }
 
@@ -304,7 +198,7 @@ func WithSort(sorts []SortParam) ListOption {
 				orderClauses = append(orderClauses, col+" ASC")
 			}
 		}
-		orderClauses = append(orderClauses, "vms.id")
+		orderClauses = append(orderClauses, `vinfo."VM ID"`)
 		return b.OrderBy(orderClauses...)
 	}
 }

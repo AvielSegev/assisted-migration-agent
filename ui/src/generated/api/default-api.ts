@@ -36,6 +36,8 @@ import type { InspectorStatus } from '../models';
 // @ts-ignore
 import type { Inventory } from '../models';
 // @ts-ignore
+import type { VMDetails } from '../models';
+// @ts-ignore
 import type { VMListResponse } from '../models';
 /**
  * DefaultApi - axios parameter creator
@@ -175,6 +177,40 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
          */
         getInventory: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/inventory`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Get details about a vm
+         * @param {string} id VM id
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getVM: async (id: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('getVM', 'id', id)
+            const localVarPath = `/vms/{id}`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -555,6 +591,19 @@ export const DefaultApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Get details about a vm
+         * @param {string} id VM id
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getVM(id: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<VMDetails>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getVM(id, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['DefaultApi.getVM']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Get inspection status for a specific VM
          * @param {number} id VM ID
          * @param {*} [options] Override http request option.
@@ -710,6 +759,16 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
         },
         /**
          * 
+         * @summary Get details about a vm
+         * @param {string} id VM id
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getVM(id: string, options?: RawAxiosRequestConfig): AxiosPromise<VMDetails> {
+            return localVarFp.getVM(id, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Get inspection status for a specific VM
          * @param {number} id VM ID
          * @param {*} [options] Override http request option.
@@ -834,6 +893,15 @@ export interface DefaultApiInterface {
      * @throws {RequiredError}
      */
     getInventory(options?: RawAxiosRequestConfig): AxiosPromise<Inventory>;
+
+    /**
+     * 
+     * @summary Get details about a vm
+     * @param {string} id VM id
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getVM(id: string, options?: RawAxiosRequestConfig): AxiosPromise<VMDetails>;
 
     /**
      * 
@@ -962,6 +1030,17 @@ export class DefaultApi extends BaseAPI implements DefaultApiInterface {
      */
     public getInventory(options?: RawAxiosRequestConfig) {
         return DefaultApiFp(this.configuration).getInventory(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get details about a vm
+     * @param {string} id VM id
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getVM(id: string, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).getVM(id, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

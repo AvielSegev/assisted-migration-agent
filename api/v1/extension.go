@@ -29,8 +29,8 @@ func NewVMFromModel(vm models.VM) VM {
 		Cluster:      vm.Cluster,
 		Datacenter:   vm.Datacenter,
 		DiskSize:     vm.DiskSize,
-		Memory:       vm.Memory,
-		VCenterState: vm.State,
+		Memory:       int64(vm.MemoryMB),
+		VCenterState: vm.PowerState,
 		Issues:       vm.Issues,
 		Inspection: InspectionStatus{
 			State: inspectionState,
