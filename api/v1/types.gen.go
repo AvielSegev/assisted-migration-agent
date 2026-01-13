@@ -48,25 +48,6 @@ const (
 	InspectorStatusStateRunning InspectorStatusState = "running"
 )
 
-// Defines values for GetVMsParamsDisksize.
-const (
-	N0100GB    GetVMsParamsDisksize = "0-100GB"
-	N1000GB    GetVMsParamsDisksize = "1000+GB"
-	N101500GB  GetVMsParamsDisksize = "101-500GB"
-	N5011000GB GetVMsParamsDisksize = "501-1000GB"
-)
-
-// Defines values for GetVMsParamsMemorysize.
-const (
-	N04GB     GetVMsParamsMemorysize = "0-4GB"
-	N129256GB GetVMsParamsMemorysize = "129-256GB"
-	N1732GB   GetVMsParamsMemorysize = "17-32GB"
-	N256GB    GetVMsParamsMemorysize = "256+GB"
-	N3364GB   GetVMsParamsMemorysize = "33-64GB"
-	N516GB    GetVMsParamsMemorysize = "5-16GB"
-	N65128GB  GetVMsParamsMemorysize = "65-128GB"
-)
-
 // AgentModeRequest defines model for AgentModeRequest.
 type AgentModeRequest struct {
 	Mode AgentModeRequestMode `json:"mode"`
@@ -144,8 +125,8 @@ type VM struct {
 	// Datacenter Datacenter name
 	Datacenter string `json:"datacenter"`
 
-	// DiskSize Total disk size (e.g., 12GB)
-	DiskSize string `json:"diskSize"`
+	// DiskSize Total disk size in MB
+	DiskSize int64 `json:"diskSize"`
 
 	// Id VM ID
 	Id         string           `json:"id"`
@@ -154,8 +135,8 @@ type VM struct {
 	// Issues List of issues found during inspection
 	Issues []string `json:"issues"`
 
-	// Memory Memory size (e.g., 16GB)
-	Memory string `json:"memory"`
+	// Memory Memory size in MB
+	Memory int64 `json:"memory"`
 
 	// Name VM name
 	Name string `json:"name"`
@@ -191,11 +172,17 @@ type GetVMsParams struct {
 	// Clusters Filter by clusters (OR logic - matches VMs in any of the specified clusters)
 	Clusters *[]string `form:"clusters,omitempty" json:"clusters,omitempty"`
 
-	// Disksize Filter by disk size ranges (OR logic - matches VMs in any of the specified ranges)
-	Disksize *[]GetVMsParamsDisksize `form:"disksize,omitempty" json:"disksize,omitempty"`
+	// DiskSizeMin Minimum disk size in MB
+	DiskSizeMin *int64 `form:"diskSizeMin,omitempty" json:"diskSizeMin,omitempty"`
 
-	// Memorysize Filter by memory size ranges (OR logic - matches VMs in any of the specified ranges)
-	Memorysize *[]GetVMsParamsMemorysize `form:"memorysize,omitempty" json:"memorysize,omitempty"`
+	// DiskSizeMax Maximum disk size in MB
+	DiskSizeMax *int64 `form:"diskSizeMax,omitempty" json:"diskSizeMax,omitempty"`
+
+	// MemorySizeMin Minimum memory size in MB
+	MemorySizeMin *int64 `form:"memorySizeMin,omitempty" json:"memorySizeMin,omitempty"`
+
+	// MemorySizeMax Maximum memory size in MB
+	MemorySizeMax *int64 `form:"memorySizeMax,omitempty" json:"memorySizeMax,omitempty"`
 
 	// Status Filter by status (OR logic - matches VMs with any of the specified statuses)
 	Status *[]string `form:"status,omitempty" json:"status,omitempty"`
@@ -206,12 +193,6 @@ type GetVMsParams struct {
 	// PageSize Number of items per page
 	PageSize *int `form:"pageSize,omitempty" json:"pageSize,omitempty"`
 }
-
-// GetVMsParamsDisksize defines parameters for GetVMs.
-type GetVMsParamsDisksize string
-
-// GetVMsParamsMemorysize defines parameters for GetVMs.
-type GetVMsParamsMemorysize string
 
 // SetAgentModeJSONRequestBody defines body for SetAgentMode for application/json ContentType.
 type SetAgentModeJSONRequestBody = AgentModeRequest

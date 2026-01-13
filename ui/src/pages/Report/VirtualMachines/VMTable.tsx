@@ -50,6 +50,30 @@ const statusLabels: Record<string, string> = {
   "red": "Not migratable",
 };
 
+const MB_IN_GB = 1024;
+const MB_IN_TB = 1024 * 1024;
+
+/**
+ * Format disk size from MB to appropriate unit (GB or TB)
+ * Shows TB for sizes >= 1TB, otherwise GB
+ */
+const formatDiskSize = (sizeInMB: number): string => {
+  if (sizeInMB >= MB_IN_TB) {
+    const sizeInTB = sizeInMB / MB_IN_TB;
+    return `${sizeInTB.toFixed(sizeInTB % 1 === 0 ? 0 : 2)} TB`;
+  }
+  const sizeInGB = sizeInMB / MB_IN_GB;
+  return `${sizeInGB.toFixed(sizeInGB % 1 === 0 ? 0 : 2)} GB`;
+};
+
+/**
+ * Format memory size from MB to GB
+ */
+const formatMemorySize = (sizeInMB: number): string => {
+  const sizeInGB = sizeInMB / MB_IN_GB;
+  return `${sizeInGB.toFixed(sizeInGB % 1 === 0 ? 0 : 2)} GB`;
+};
+
 const VMTable: React.FC<VMTableProps> = ({
   vms,
   total,
@@ -313,8 +337,8 @@ const VMTable: React.FC<VMTableProps> = ({
                 <Td dataLabel="Status">{renderStatus(vm)}</Td>
                 <Td dataLabel="Data center">{vm.datacenter}</Td>
                 <Td dataLabel="Cluster">{vm.cluster}</Td>
-                <Td dataLabel="Disk size">{vm.diskSize}</Td>
-                <Td dataLabel="Memory size">{vm.memory}</Td>
+                <Td dataLabel="Disk size">{formatDiskSize(vm.diskSize)}</Td>
+                <Td dataLabel="Memory size">{formatMemorySize(vm.memory)}</Td>
                 <Td dataLabel="Issues">{renderIssues(vm)}</Td>
                 <Td isActionCell>
                   <Dropdown

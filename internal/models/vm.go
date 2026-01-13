@@ -1,8 +1,8 @@
 package models
 
 import (
-	vsphere "github.com/kubev2v/forklift/pkg/controller/provider/model/vsphere"
 	"github.com/kubev2v/assisted-migration-agent/internal/util"
+	vsphere "github.com/kubev2v/forklift/pkg/controller/provider/model/vsphere"
 )
 
 type VM struct {

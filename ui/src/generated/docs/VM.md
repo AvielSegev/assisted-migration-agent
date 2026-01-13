@@ -10,8 +10,8 @@ Name | Type | Description | Notes
 **vCenterState** | **string** | vCenter state (e.g., green, yellow, red) | [default to undefined]
 **datacenter** | **string** | Datacenter name | [default to undefined]
 **cluster** | **string** | Cluster name | [default to undefined]
-**diskSize** | **string** | Total disk size (e.g., 12GB) | [default to undefined]
-**memory** | **string** | Memory size (e.g., 16GB) | [default to undefined]
+**diskSize** | **number** | Total disk size in MB | [default to undefined]
+**memory** | **number** | Memory size in MB | [default to undefined]
 **issues** | **Array&lt;string&gt;** | List of issues found during inspection | [default to undefined]
 **inspection** | [**InspectionStatus**](InspectionStatus.md) |  | [default to undefined]
 

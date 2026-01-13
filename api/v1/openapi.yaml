@@ -134,39 +134,38 @@ paths:
           style: form
           explode: true
           example: ["cluster1", "cluster2"]
-        - name: disksize
+        - name: diskSizeMin
           in: query
-          description: Filter by disk size ranges (OR logic - matches VMs in any of the specified ranges)
+          description: Minimum disk size in MB
           schema:
-            type: array
-            items:
-              type: string
-              enum:
-                - 0-100GB
-                - 101-500GB
-                - 501-1000GB
-                - 1000+GB
-          style: form
-          explode: true
-          example: ["0-100GB", "101-500GB"]
-        - name: memorysize
+            type: integer
+            format: int64
+            minimum: 0
+          example: 102400
+        - name: diskSizeMax
           in: query
-          description: Filter by memory size ranges (OR logic - matches VMs in any of the specified ranges)
+          description: Maximum disk size in MB
           schema:
-            type: array
-            items:
-              type: string
-              enum:
-                - 0-4GB
-                - 5-16GB
-                - 17-32GB
-                - 33-64GB
-                - 65-128GB
-                - 129-256GB
-                - 256+GB
-          style: form
-          explode: true
-          example: ["5-16GB", "17-32GB"]
+            type: integer
+            format: int64
+            minimum: 0
+          example: 512000
+        - name: memorySizeMin
+          in: query
+          description: Minimum memory size in MB
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+          example: 8192
+        - name: memorySizeMax
+          in: query
+          description: Maximum memory size in MB
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+          example: 32768
         - name: status
           in: query
           description: Filter by status (OR logic - matches VMs with any of the specified statuses)
@@ -429,11 +428,13 @@ components:
           type: string
           description: Cluster name
         diskSize:
-          type: string
-          description: Total disk size (e.g., 12GB)
+          type: integer
+          format: int64
+          description: Total disk size in MB
         memory:
-          type: string
-          description: Memory size (e.g., 16GB)
+          type: integer
+          format: int64
+          description: Memory size in MB
         issues:
           type: array
           items:
