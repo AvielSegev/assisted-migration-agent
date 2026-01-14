@@ -270,21 +270,20 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
         /**
          * 
          * @summary Get list of VMs with filtering and pagination
-         * @param {Array<string>} [issues] Filter by issues (OR logic - matches VMs with any of the specified issues)
-         * @param {Array<string>} [datacenters] Filter by datacenters (OR logic - matches VMs in any of the specified datacenters)
+         * @param {number} [minIssues] Filter VMs with at least this many issues
          * @param {Array<string>} [clusters] Filter by clusters (OR logic - matches VMs in any of the specified clusters)
          * @param {number} [diskSizeMin] Minimum disk size in MB
          * @param {number} [diskSizeMax] Maximum disk size in MB
          * @param {number} [memorySizeMin] Minimum memory size in MB
          * @param {number} [memorySizeMax] Maximum memory size in MB
          * @param {Array<string>} [status] Filter by status (OR logic - matches VMs with any of the specified statuses)
-         * @param {Array<string>} [sort] Sort fields with direction (e.g., \&quot;name:asc\&quot; or \&quot;datacenter:desc,name:asc\&quot;). Valid fields are name, vCenterState, datacenter, cluster, diskSize, memory.
+         * @param {Array<string>} [sort] Sort fields with direction (e.g., \&quot;name:asc\&quot; or \&quot;cluster:desc,name:asc\&quot;). Valid fields are name, vCenterState, cluster, diskSize, memory, issues.
          * @param {number} [page] Page number for pagination
          * @param {number} [pageSize] Number of items per page
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getVMs: async (issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, diskSizeMin?: number, diskSizeMax?: number, memorySizeMin?: number, memorySizeMax?: number, status?: Array<string>, sort?: Array<string>, page?: number, pageSize?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        getVMs: async (minIssues?: number, clusters?: Array<string>, diskSizeMin?: number, diskSizeMax?: number, memorySizeMin?: number, memorySizeMax?: number, status?: Array<string>, sort?: Array<string>, page?: number, pageSize?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/vms`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -297,12 +296,8 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
 
-            if (issues) {
-                localVarQueryParameter['issues'] = issues;
-            }
-
-            if (datacenters) {
-                localVarQueryParameter['datacenters'] = datacenters;
+            if (minIssues !== undefined) {
+                localVarQueryParameter['minIssues'] = minIssues;
             }
 
             if (clusters) {
@@ -618,22 +613,21 @@ export const DefaultApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @summary Get list of VMs with filtering and pagination
-         * @param {Array<string>} [issues] Filter by issues (OR logic - matches VMs with any of the specified issues)
-         * @param {Array<string>} [datacenters] Filter by datacenters (OR logic - matches VMs in any of the specified datacenters)
+         * @param {number} [minIssues] Filter VMs with at least this many issues
          * @param {Array<string>} [clusters] Filter by clusters (OR logic - matches VMs in any of the specified clusters)
          * @param {number} [diskSizeMin] Minimum disk size in MB
          * @param {number} [diskSizeMax] Maximum disk size in MB
          * @param {number} [memorySizeMin] Minimum memory size in MB
          * @param {number} [memorySizeMax] Maximum memory size in MB
          * @param {Array<string>} [status] Filter by status (OR logic - matches VMs with any of the specified statuses)
-         * @param {Array<string>} [sort] Sort fields with direction (e.g., \&quot;name:asc\&quot; or \&quot;datacenter:desc,name:asc\&quot;). Valid fields are name, vCenterState, datacenter, cluster, diskSize, memory.
+         * @param {Array<string>} [sort] Sort fields with direction (e.g., \&quot;name:asc\&quot; or \&quot;cluster:desc,name:asc\&quot;). Valid fields are name, vCenterState, cluster, diskSize, memory, issues.
          * @param {number} [page] Page number for pagination
          * @param {number} [pageSize] Number of items per page
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getVMs(issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, diskSizeMin?: number, diskSizeMax?: number, memorySizeMin?: number, memorySizeMax?: number, status?: Array<string>, sort?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<VMListResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getVMs(issues, datacenters, clusters, diskSizeMin, diskSizeMax, memorySizeMin, memorySizeMax, status, sort, page, pageSize, options);
+        async getVMs(minIssues?: number, clusters?: Array<string>, diskSizeMin?: number, diskSizeMax?: number, memorySizeMin?: number, memorySizeMax?: number, status?: Array<string>, sort?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<VMListResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getVMs(minIssues, clusters, diskSizeMin, diskSizeMax, memorySizeMin, memorySizeMax, status, sort, page, pageSize, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['DefaultApi.getVMs']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -780,22 +774,21 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
         /**
          * 
          * @summary Get list of VMs with filtering and pagination
-         * @param {Array<string>} [issues] Filter by issues (OR logic - matches VMs with any of the specified issues)
-         * @param {Array<string>} [datacenters] Filter by datacenters (OR logic - matches VMs in any of the specified datacenters)
+         * @param {number} [minIssues] Filter VMs with at least this many issues
          * @param {Array<string>} [clusters] Filter by clusters (OR logic - matches VMs in any of the specified clusters)
          * @param {number} [diskSizeMin] Minimum disk size in MB
          * @param {number} [diskSizeMax] Maximum disk size in MB
          * @param {number} [memorySizeMin] Minimum memory size in MB
          * @param {number} [memorySizeMax] Maximum memory size in MB
          * @param {Array<string>} [status] Filter by status (OR logic - matches VMs with any of the specified statuses)
-         * @param {Array<string>} [sort] Sort fields with direction (e.g., \&quot;name:asc\&quot; or \&quot;datacenter:desc,name:asc\&quot;). Valid fields are name, vCenterState, datacenter, cluster, diskSize, memory.
+         * @param {Array<string>} [sort] Sort fields with direction (e.g., \&quot;name:asc\&quot; or \&quot;cluster:desc,name:asc\&quot;). Valid fields are name, vCenterState, cluster, diskSize, memory, issues.
          * @param {number} [page] Page number for pagination
          * @param {number} [pageSize] Number of items per page
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getVMs(issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, diskSizeMin?: number, diskSizeMax?: number, memorySizeMin?: number, memorySizeMax?: number, status?: Array<string>, sort?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<VMListResponse> {
-            return localVarFp.getVMs(issues, datacenters, clusters, diskSizeMin, diskSizeMax, memorySizeMin, memorySizeMax, status, sort, page, pageSize, options).then((request) => request(axios, basePath));
+        getVMs(minIssues?: number, clusters?: Array<string>, diskSizeMin?: number, diskSizeMax?: number, memorySizeMin?: number, memorySizeMax?: number, status?: Array<string>, sort?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<VMListResponse> {
+            return localVarFp.getVMs(minIssues, clusters, diskSizeMin, diskSizeMax, memorySizeMin, memorySizeMax, status, sort, page, pageSize, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -915,21 +908,20 @@ export interface DefaultApiInterface {
     /**
      * 
      * @summary Get list of VMs with filtering and pagination
-     * @param {Array<string>} [issues] Filter by issues (OR logic - matches VMs with any of the specified issues)
-     * @param {Array<string>} [datacenters] Filter by datacenters (OR logic - matches VMs in any of the specified datacenters)
+     * @param {number} [minIssues] Filter VMs with at least this many issues
      * @param {Array<string>} [clusters] Filter by clusters (OR logic - matches VMs in any of the specified clusters)
      * @param {number} [diskSizeMin] Minimum disk size in MB
      * @param {number} [diskSizeMax] Maximum disk size in MB
      * @param {number} [memorySizeMin] Minimum memory size in MB
      * @param {number} [memorySizeMax] Maximum memory size in MB
      * @param {Array<string>} [status] Filter by status (OR logic - matches VMs with any of the specified statuses)
-     * @param {Array<string>} [sort] Sort fields with direction (e.g., \&quot;name:asc\&quot; or \&quot;datacenter:desc,name:asc\&quot;). Valid fields are name, vCenterState, datacenter, cluster, diskSize, memory.
+     * @param {Array<string>} [sort] Sort fields with direction (e.g., \&quot;name:asc\&quot; or \&quot;cluster:desc,name:asc\&quot;). Valid fields are name, vCenterState, cluster, diskSize, memory, issues.
      * @param {number} [page] Page number for pagination
      * @param {number} [pageSize] Number of items per page
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getVMs(issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, diskSizeMin?: number, diskSizeMax?: number, memorySizeMin?: number, memorySizeMax?: number, status?: Array<string>, sort?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<VMListResponse>;
+    getVMs(minIssues?: number, clusters?: Array<string>, diskSizeMin?: number, diskSizeMax?: number, memorySizeMin?: number, memorySizeMax?: number, status?: Array<string>, sort?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<VMListResponse>;
 
     /**
      * 
@@ -1057,22 +1049,21 @@ export class DefaultApi extends BaseAPI implements DefaultApiInterface {
     /**
      * 
      * @summary Get list of VMs with filtering and pagination
-     * @param {Array<string>} [issues] Filter by issues (OR logic - matches VMs with any of the specified issues)
-     * @param {Array<string>} [datacenters] Filter by datacenters (OR logic - matches VMs in any of the specified datacenters)
+     * @param {number} [minIssues] Filter VMs with at least this many issues
      * @param {Array<string>} [clusters] Filter by clusters (OR logic - matches VMs in any of the specified clusters)
      * @param {number} [diskSizeMin] Minimum disk size in MB
      * @param {number} [diskSizeMax] Maximum disk size in MB
      * @param {number} [memorySizeMin] Minimum memory size in MB
      * @param {number} [memorySizeMax] Maximum memory size in MB
      * @param {Array<string>} [status] Filter by status (OR logic - matches VMs with any of the specified statuses)
-     * @param {Array<string>} [sort] Sort fields with direction (e.g., \&quot;name:asc\&quot; or \&quot;datacenter:desc,name:asc\&quot;). Valid fields are name, vCenterState, datacenter, cluster, diskSize, memory.
+     * @param {Array<string>} [sort] Sort fields with direction (e.g., \&quot;name:asc\&quot; or \&quot;cluster:desc,name:asc\&quot;). Valid fields are name, vCenterState, cluster, diskSize, memory, issues.
      * @param {number} [page] Page number for pagination
      * @param {number} [pageSize] Number of items per page
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public getVMs(issues?: Array<string>, datacenters?: Array<string>, clusters?: Array<string>, diskSizeMin?: number, diskSizeMax?: number, memorySizeMin?: number, memorySizeMax?: number, status?: Array<string>, sort?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig) {
-        return DefaultApiFp(this.configuration).getVMs(issues, datacenters, clusters, diskSizeMin, diskSizeMax, memorySizeMin, memorySizeMax, status, sort, page, pageSize, options).then((request) => request(this.axios, this.basePath));
+    public getVMs(minIssues?: number, clusters?: Array<string>, diskSizeMin?: number, diskSizeMax?: number, memorySizeMin?: number, memorySizeMax?: number, status?: Array<string>, sort?: Array<string>, page?: number, pageSize?: number, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).getVMs(minIssues, clusters, diskSizeMin, diskSizeMax, memorySizeMin, memorySizeMax, status, sort, page, pageSize, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

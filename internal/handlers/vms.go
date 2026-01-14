@@ -14,7 +14,6 @@ import (
 var validSortFields = map[string]bool{
 	"name":         true,
 	"vCenterState": true,
-	"datacenter":   true,
 	"cluster":      true,
 	"diskSize":     true,
 	"memory":       true,
@@ -60,17 +59,14 @@ func (h *Handler) GetVMs(c *gin.Context, params v1.GetVMsParams) {
 		Offset: uint64((page - 1) * pageSize),
 	}
 
-	if params.Datacenters != nil {
-		svcParams.Datacenters = *params.Datacenters
-	}
 	if params.Clusters != nil {
 		svcParams.Clusters = *params.Clusters
 	}
 	if params.Status != nil {
 		svcParams.Statuses = *params.Status
 	}
-	if params.Issues != nil {
-		svcParams.Issues = *params.Issues
+	if params.MinIssues != nil {
+		svcParams.MinIssues = *params.MinIssues
 	}
 	if params.DiskSizeMin != nil {
 		svcParams.DiskSizeMin = params.DiskSizeMin
@@ -122,7 +118,7 @@ func (h *Handler) GetVMs(c *gin.Context, params v1.GetVMsParams) {
 	// Map to API response
 	apiVMs := make([]v1.VM, 0, len(vms))
 	for _, vm := range vms {
-		apiVMs = append(apiVMs, v1.NewVMFromModel(vm))
+		apiVMs = append(apiVMs, v1.NewVMFromSummary(vm))
 	}
 
 	c.JSON(http.StatusOK, v1.VMListResponse{

@@ -195,7 +195,7 @@ const VMTable: React.FC<VMTableProps> = ({
   // Render status cell with icon
   const renderStatus = (vm: VM) => {
     const state = vm.vCenterState;
-    const hasIssues = vm.issues.length > 0;
+    const hasIssues = vm.issueCount > 0;
 
     return (
       <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -215,7 +215,7 @@ const VMTable: React.FC<VMTableProps> = ({
 
   // Render issues column
   const renderIssues = (vm: VM) => {
-    return vm.issues.length;
+    return vm.issueCount;
   };
 
   return (

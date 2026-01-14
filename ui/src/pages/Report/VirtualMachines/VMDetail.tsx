@@ -20,14 +20,7 @@ import {
   StackItem,
   Title,
 } from "@patternfly/react-core";
-import {
-  Table,
-  Thead,
-  Tr,
-  Th,
-  Tbody,
-  Td,
-} from "@patternfly/react-table";
+import { Table, Thead, Tr, Th, Tbody, Td } from "@patternfly/react-table";
 import {
   ArrowLeftIcon,
   CheckCircleIcon,
@@ -65,9 +58,11 @@ interface VMDetailProps {
 
 const VMDetail: React.FC<VMDetailProps> = ({ vmId, onBack }) => {
   const dispatch = useAppDispatch();
-  const { selectedVMDetails: vm, detailLoading, detailError } = useAppSelector(
-    (state) => state.vm
-  );
+  const {
+    selectedVMDetails: vm,
+    detailLoading,
+    detailError,
+  } = useAppSelector((state) => state.vm);
 
   useEffect(() => {
     dispatch(fetchVMDetails(vmId));
@@ -80,7 +75,9 @@ const VMDetail: React.FC<VMDetailProps> = ({ vmId, onBack }) => {
 
   if (detailLoading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", padding: "48px" }}>
+      <div
+        style={{ display: "flex", justifyContent: "center", padding: "48px" }}
+      >
         <Spinner size="xl" />
       </div>
     );
@@ -132,7 +129,11 @@ const VMDetail: React.FC<VMDetailProps> = ({ vmId, onBack }) => {
       <StackItem>
         <Breadcrumb>
           <BreadcrumbItem>
-            <Button variant="link" onClick={handleBack} icon={<ArrowLeftIcon />}>
+            <Button
+              variant="link"
+              onClick={handleBack}
+              icon={<ArrowLeftIcon />}
+            >
               Back to Virtual Machines
             </Button>
           </BreadcrumbItem>
@@ -140,7 +141,13 @@ const VMDetail: React.FC<VMDetailProps> = ({ vmId, onBack }) => {
       </StackItem>
 
       <StackItem>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
           <div>
             <Title headingLevel="h1" size="2xl">
               {vm.name}
@@ -154,35 +161,52 @@ const VMDetail: React.FC<VMDetailProps> = ({ vmId, onBack }) => {
       </StackItem>
 
       <StackItem>
-        <Flex gap={{ default: "gapMd" }} alignItems={{ default: "alignItemsStretch" }}>
+        <Flex
+          gap={{ default: "gapMd" }}
+          alignItems={{ default: "alignItemsStretch" }}
+        >
           <FlexItem flex={{ default: "flex_1" }}>
             <Card isFullHeight className="dashboard-card-border">
-              <CardTitle><InfoCircleIcon /> General</CardTitle>
+              <CardTitle>
+                <InfoCircleIcon /> General
+              </CardTitle>
               <CardBody>
                 <DescriptionList isCompact>
                   <DescriptionListGroup>
                     <DescriptionListTerm>Datacenter</DescriptionListTerm>
-                    <DescriptionListDescription>{vm.datacenter || "—"}</DescriptionListDescription>
+                    <DescriptionListDescription>
+                      {vm.datacenter || "—"}
+                    </DescriptionListDescription>
                   </DescriptionListGroup>
                   <DescriptionListGroup>
                     <DescriptionListTerm>Cluster</DescriptionListTerm>
-                    <DescriptionListDescription>{vm.cluster || "—"}</DescriptionListDescription>
+                    <DescriptionListDescription>
+                      {vm.cluster || "—"}
+                    </DescriptionListDescription>
                   </DescriptionListGroup>
                   <DescriptionListGroup>
                     <DescriptionListTerm>Host</DescriptionListTerm>
-                    <DescriptionListDescription>{vm.host || "—"}</DescriptionListDescription>
+                    <DescriptionListDescription>
+                      {vm.host || "—"}
+                    </DescriptionListDescription>
                   </DescriptionListGroup>
                   <DescriptionListGroup>
                     <DescriptionListTerm>UUID</DescriptionListTerm>
-                    <DescriptionListDescription>{vm.uuid || "—"}</DescriptionListDescription>
+                    <DescriptionListDescription>
+                      {vm.uuid || "—"}
+                    </DescriptionListDescription>
                   </DescriptionListGroup>
                   <DescriptionListGroup>
                     <DescriptionListTerm>Firmware</DescriptionListTerm>
-                    <DescriptionListDescription>{vm.firmware || "—"}</DescriptionListDescription>
+                    <DescriptionListDescription>
+                      {vm.firmware || "—"}
+                    </DescriptionListDescription>
                   </DescriptionListGroup>
                   <DescriptionListGroup>
                     <DescriptionListTerm>VMware Tools</DescriptionListTerm>
-                    <DescriptionListDescription>{vm.toolsStatus || "—"}</DescriptionListDescription>
+                    <DescriptionListDescription>
+                      {vm.toolsStatus || "—"}
+                    </DescriptionListDescription>
                   </DescriptionListGroup>
                 </DescriptionList>
               </CardBody>
@@ -191,28 +215,40 @@ const VMDetail: React.FC<VMDetailProps> = ({ vmId, onBack }) => {
 
           <FlexItem flex={{ default: "flex_1" }}>
             <Card isFullHeight className="dashboard-card-border">
-              <CardTitle><CpuIcon /> Compute</CardTitle>
+              <CardTitle>
+                <CpuIcon /> Compute
+              </CardTitle>
               <CardBody>
                 <DescriptionList isCompact>
                   <DescriptionListGroup>
                     <DescriptionListTerm>Power State</DescriptionListTerm>
-                    <DescriptionListDescription>{vm.powerState}</DescriptionListDescription>
+                    <DescriptionListDescription>
+                      {vm.powerState}
+                    </DescriptionListDescription>
                   </DescriptionListGroup>
                   <DescriptionListGroup>
                     <DescriptionListTerm>Connection State</DescriptionListTerm>
-                    <DescriptionListDescription>{vm.connectionState}</DescriptionListDescription>
+                    <DescriptionListDescription>
+                      {vm.connectionState}
+                    </DescriptionListDescription>
                   </DescriptionListGroup>
                   <DescriptionListGroup>
                     <DescriptionListTerm>vCPUs</DescriptionListTerm>
-                    <DescriptionListDescription>{vm.cpuCount}</DescriptionListDescription>
+                    <DescriptionListDescription>
+                      {vm.cpuCount}
+                    </DescriptionListDescription>
                   </DescriptionListGroup>
                   <DescriptionListGroup>
                     <DescriptionListTerm>Cores/Socket</DescriptionListTerm>
-                    <DescriptionListDescription>{vm.coresPerSocket}</DescriptionListDescription>
+                    <DescriptionListDescription>
+                      {vm.coresPerSocket}
+                    </DescriptionListDescription>
                   </DescriptionListGroup>
                   <DescriptionListGroup>
                     <DescriptionListTerm>Memory</DescriptionListTerm>
-                    <DescriptionListDescription>{formatMemorySize(vm.memoryMB)}</DescriptionListDescription>
+                    <DescriptionListDescription>
+                      {formatMemorySize(vm.memoryMB)}
+                    </DescriptionListDescription>
                   </DescriptionListGroup>
                   <DescriptionListGroup>
                     <DescriptionListTerm>CPU Affinity</DescriptionListTerm>
@@ -229,24 +265,34 @@ const VMDetail: React.FC<VMDetailProps> = ({ vmId, onBack }) => {
 
           <FlexItem flex={{ default: "flex_1" }}>
             <Card isFullHeight className="dashboard-card-border">
-              <CardTitle><OutlinedHddIcon /> Guest OS</CardTitle>
+              <CardTitle>
+                <OutlinedHddIcon /> Guest OS
+              </CardTitle>
               <CardBody>
                 <DescriptionList isCompact>
                   <DescriptionListGroup>
                     <DescriptionListTerm>OS</DescriptionListTerm>
-                    <DescriptionListDescription>{vm.guestName || "—"}</DescriptionListDescription>
+                    <DescriptionListDescription>
+                      {vm.guestName || "—"}
+                    </DescriptionListDescription>
                   </DescriptionListGroup>
                   <DescriptionListGroup>
                     <DescriptionListTerm>Guest ID</DescriptionListTerm>
-                    <DescriptionListDescription>{vm.guestId || "—"}</DescriptionListDescription>
+                    <DescriptionListDescription>
+                      {vm.guestId || "—"}
+                    </DescriptionListDescription>
                   </DescriptionListGroup>
                   <DescriptionListGroup>
                     <DescriptionListTerm>Hostname</DescriptionListTerm>
-                    <DescriptionListDescription>{vm.hostName || "—"}</DescriptionListDescription>
+                    <DescriptionListDescription>
+                      {vm.hostName || "—"}
+                    </DescriptionListDescription>
                   </DescriptionListGroup>
                   <DescriptionListGroup>
                     <DescriptionListTerm>IP Address</DescriptionListTerm>
-                    <DescriptionListDescription>{vm.ipAddress || "—"}</DescriptionListDescription>
+                    <DescriptionListDescription>
+                      {vm.ipAddress || "—"}
+                    </DescriptionListDescription>
                   </DescriptionListGroup>
                 </DescriptionList>
               </CardBody>
@@ -255,12 +301,16 @@ const VMDetail: React.FC<VMDetailProps> = ({ vmId, onBack }) => {
 
           <FlexItem flex={{ default: "flex_1" }}>
             <Card isFullHeight className="dashboard-card-border">
-              <CardTitle><CogIcon /> Features</CardTitle>
+              <CardTitle>
+                <CogIcon /> Features
+              </CardTitle>
               <CardBody>
                 <DescriptionList isCompact>
                   <DescriptionListGroup>
                     <DescriptionListTerm>Template</DescriptionListTerm>
-                    <DescriptionListDescription>{vm.isTemplate ? "Yes" : "No"}</DescriptionListDescription>
+                    <DescriptionListDescription>
+                      {vm.isTemplate ? "Yes" : "No"}
+                    </DescriptionListDescription>
                   </DescriptionListGroup>
                   <DescriptionListGroup>
                     <DescriptionListTerm>Fault Tolerance</DescriptionListTerm>
@@ -269,7 +319,9 @@ const VMDetail: React.FC<VMDetailProps> = ({ vmId, onBack }) => {
                     </DescriptionListDescription>
                   </DescriptionListGroup>
                   <DescriptionListGroup>
-                    <DescriptionListTerm>Nested Virtualization</DescriptionListTerm>
+                    <DescriptionListTerm>
+                      Nested Virtualization
+                    </DescriptionListTerm>
                     <DescriptionListDescription>
                       {vm.nestedHVEnabled ? "Enabled" : "Disabled"}
                     </DescriptionListDescription>
@@ -278,34 +330,71 @@ const VMDetail: React.FC<VMDetailProps> = ({ vmId, onBack }) => {
               </CardBody>
             </Card>
           </FlexItem>
+
+          <FlexItem flex={{ default: "flex_1" }}>
+            <Card isFullHeight className="dashboard-card-border">
+              <CardTitle>
+                <NetworkIcon /> Network
+              </CardTitle>
+              <CardBody>
+                {vm.nics.length === 0 ? (
+                  <span
+                    style={{
+                      color: "var(--pf-t--global--text--color--subtle)",
+                    }}
+                  >
+                    No network adapters
+                  </span>
+                ) : (
+                  <Table
+                    aria-label="NICs table"
+                    variant="compact"
+                    borders={false}
+                  >
+                    <Thead>
+                      <Tr>
+                        <Th
+                          style={{
+                            paddingLeft: 0,
+                            paddingTop: 0,
+                            fontSize: "var(--pf-t--global--font--size--sm)",
+                          }}
+                        >
+                          Network
+                        </Th>
+                        <Th
+                          style={{
+                            paddingTop: 0,
+                            fontSize: "var(--pf-t--global--font--size--sm)",
+                          }}
+                        >
+                          MAC
+                        </Th>
+                      </Tr>
+                    </Thead>
+                    <Tbody>
+                      {vm.nics.map((nic, index) => (
+                        <Tr key={index}>
+                          <Td style={{ paddingLeft: 0}}>
+                            {nic.network || "—"}
+                          </Td>
+                          <Td>{nic.mac || "—"}</Td>
+                        </Tr>
+                      ))}
+                    </Tbody>
+                  </Table>
+                )}
+              </CardBody>
+            </Card>
+          </FlexItem>
         </Flex>
       </StackItem>
 
-      {vm.issues && vm.issues.length > 0 && (
-        <StackItem>
-          <Card className="dashboard-card-border">
-            <CardTitle><ExclamationTriangleIcon /> Issues</CardTitle>
-            <CardBody>
-              <Stack hasGutter>
-                {vm.issues.map((issue, index) => (
-                  <StackItem key={index}>
-                    <Alert
-                      variant="warning"
-                      isInline
-                      isPlain
-                      title={issue}
-                    />
-                  </StackItem>
-                ))}
-              </Stack>
-            </CardBody>
-          </Card>
-        </StackItem>
-      )}
-
       <StackItem>
         <Card className="dashboard-card-border">
-          <CardTitle><StorageDomainIcon /> Storage</CardTitle>
+          <CardTitle>
+            <StorageDomainIcon /> Storage
+          </CardTitle>
           <CardBody>
             {vm.disks.length === 0 ? (
               <div>No disks attached</div>
@@ -325,7 +414,9 @@ const VMDetail: React.FC<VMDetailProps> = ({ vmId, onBack }) => {
                   {vm.disks.map((disk, index) => (
                     <Tr key={index}>
                       <Td>{disk.file || "—"}</Td>
-                      <Td>{disk.capacity ? formatCapacity(disk.capacity) : "—"}</Td>
+                      <Td>
+                        {disk.capacity ? formatCapacity(disk.capacity) : "—"}
+                      </Td>
                       <Td>{disk.bus || "—"}</Td>
                       <Td>{disk.mode || "—"}</Td>
                       <Td>{disk.shared ? "Yes" : "No"}</Td>
@@ -341,29 +432,24 @@ const VMDetail: React.FC<VMDetailProps> = ({ vmId, onBack }) => {
 
       <StackItem>
         <Card className="dashboard-card-border">
-          <CardTitle><NetworkIcon /> Network</CardTitle>
+          <CardTitle>
+            <ExclamationTriangleIcon /> Issues
+          </CardTitle>
           <CardBody>
-            {vm.nics.length === 0 ? (
-              <div>No network adapters attached</div>
+            {vm.issues && vm.issues.length > 0 ? (
+              <Stack hasGutter>
+                {vm.issues.map((issue, index) => (
+                  <StackItem key={index}>
+                    <Alert variant="warning" isInline isPlain title={issue} />
+                  </StackItem>
+                ))}
+              </Stack>
             ) : (
-              <Table aria-label="NICs table" variant="compact">
-                <Thead>
-                  <Tr>
-                    <Th>#</Th>
-                    <Th>MAC Address</Th>
-                    <Th>Network</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {vm.nics.map((nic, index) => (
-                    <Tr key={index}>
-                      <Td>{nic.index ?? index}</Td>
-                      <Td>{nic.mac || "—"}</Td>
-                      <Td>{nic.network || "—"}</Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
+              <span
+                style={{ color: "var(--pf-t--global--text--color--subtle)" }}
+              >
+                No issues found
+              </span>
             )}
           </CardBody>
         </Card>

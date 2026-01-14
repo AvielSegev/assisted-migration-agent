@@ -24,7 +24,7 @@ func NewStore(db *sql.DB) *Store {
 		parser:        parser,
 		configuration: NewConfigurationStore(qi),
 		inventory:     NewInventoryStore(qi),
-		vm:            NewVMStore(parser),
+		vm:            NewVMStore(qi, parser),
 		credentials:   NewCredentialsStore(qi),
 	}
 }

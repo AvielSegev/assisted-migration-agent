@@ -9,39 +9,20 @@ func (a *AgentStatus) FromModel(m models.AgentStatus) {
 	a.Mode = AgentStatusMode(m.Console.Target)
 }
 
-// NewVMFromModel converts a models.VM to an API VM.
-func NewVMFromModel(vm models.VM) VM {
-	var inspectionState InspectionStatusState
-	switch vm.InspectionState {
-	case "completed":
-		inspectionState = InspectionStatusStateCompleted
-	case "running":
-		inspectionState = InspectionStatusStateRunning
-	case "error":
-		inspectionState = InspectionStatusStateError
-	default:
-		inspectionState = InspectionStatusStatePending
-	}
-
-	apiVM := VM{
+// NewVMFromSummary converts a models.VMSummary to an API VM.
+func NewVMFromSummary(vm models.VMSummary) VM {
+	return VM{
 		Id:           vm.ID,
 		Name:         vm.Name,
 		Cluster:      vm.Cluster,
-		Datacenter:   vm.Datacenter,
 		DiskSize:     vm.DiskSize,
-		Memory:       int64(vm.MemoryMB),
+		Memory:       int64(vm.Memory),
 		VCenterState: vm.PowerState,
-		Issues:       vm.Issues,
+		IssueCount:   vm.IssueCount,
 		Inspection: InspectionStatus{
-			State: inspectionState,
+			State: InspectionStatusStatePending,
 		},
 	}
-
-	if vm.InspectionError != "" {
-		apiVM.Inspection.Error = &vm.InspectionError
-	}
-
-	return apiVM
 }
 
 func NewCollectorStatus(status models.CollectorStatus) CollectorStatus {

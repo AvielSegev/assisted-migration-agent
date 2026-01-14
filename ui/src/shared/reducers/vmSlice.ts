@@ -5,10 +5,9 @@ import type { ApiError } from './collectorSlice';
 import { extractApiError } from './collectorSlice';
 
 export interface VMFilters {
-  datacenters?: string[];
   clusters?: string[];
   status?: string[];
-  issues?: string[];
+  minIssues?: number;
   diskSizeMin?: number;
   diskSizeMax?: number;
   memorySizeMin?: number;
@@ -68,8 +67,7 @@ export const fetchVMs = createAsyncThunk(
       const sort = params?.sort ?? state.vm.sort;
 
       const response = await apiClient.getVMs(
-        filters.issues,
-        filters.datacenters,
+        filters.minIssues,
         filters.clusters,
         filters.diskSizeMin,
         filters.diskSizeMax,
