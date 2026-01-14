@@ -23,34 +23,6 @@ var _ = Describe("VMStore", func() {
 		db, err = store.NewDB(":memory:")
 		Expect(err).NotTo(HaveOccurred())
 
-		// Initialize the parser schema (creates vinfo, concerns, vdisk, etc.)
-		err = s.Parser().Init()
-		if err != nil {
-			// Schema might already exist, try creating tables manually
-			_, err = db.ExecContext(ctx, `
-				CREATE TABLE IF NOT EXISTS vinfo (
-					"VM ID" VARCHAR,
-					"VM" VARCHAR,
-					"Powerstate" VARCHAR,
-					"Cluster" VARCHAR,
-					"Datacenter" VARCHAR,
-					"Memory" INTEGER DEFAULT 0
-				);
-				CREATE TABLE IF NOT EXISTS concerns (
-					"VM_ID" VARCHAR,
-					"Concern_ID" VARCHAR,
-					"Label" VARCHAR,
-					"Category" VARCHAR,
-					"Assessment" VARCHAR
-				);
-				CREATE TABLE IF NOT EXISTS vdisk (
-					"VM ID" VARCHAR,
-					"Capacity MiB" BIGINT DEFAULT 0
-				);
-			`)
-			Expect(err).NotTo(HaveOccurred())
-		}
-
 		s = store.NewStore(db)
 	})
 
