@@ -1,16 +1,17 @@
 package services
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"go.uber.org/zap"
 
+	"github.com/cenkalti/backoff/v5"
 	"github.com/google/uuid"
 
 	"github.com/kubev2v/assisted-migration-agent/internal/config"
@@ -21,23 +22,28 @@ import (
 	"github.com/kubev2v/assisted-migration-agent/pkg/scheduler"
 )
 
+// errInventoryNotChanged is a sentinel error used to signal that no inventory
+// request was made because the inventory hasn't changed.
+var errInventoryNotChanged = stderrors.New("inventory not changed")
+
 type Collector interface {
 	GetStatus() models.CollectorStatus
 }
 
 type Console struct {
-	updateInterval    time.Duration
-	agentID           uuid.UUID
-	sourceID          uuid.UUID
-	version           string
-	state             models.ConsoleStatus
-	mu                sync.Mutex
-	scheduler         *scheduler.Scheduler
-	client            *console.Client
-	close             chan any
-	collector         Collector
-	inventoryLastHash string // holds the hash of the last sent inventory
-	store             *store.Store
+	updateInterval      time.Duration
+	agentID             uuid.UUID
+	sourceID            uuid.UUID
+	version             string
+	state               models.ConsoleStatus
+	mu                  sync.Mutex
+	scheduler           *scheduler.Scheduler
+	client              *console.Client
+	close               chan any
+	collector           Collector
+	inventoryLastHash   string // holds the hash of the last sent inventory
+	store               *store.Store
+	legacyStatusEnabled bool
 }
 
 func NewConsoleService(cfg config.Agent, s *scheduler.Scheduler, client *console.Client, collector Collector, st *store.Store) *Console {
@@ -68,16 +74,17 @@ func NewConsoleService(cfg config.Agent, s *scheduler.Scheduler, client *console
 
 func newConsoleService(cfg config.Agent, s *scheduler.Scheduler, client *console.Client, collector Collector, store *store.Store, defaultStatus models.ConsoleStatus) *Console {
 	return &Console{
-		updateInterval: cfg.UpdateInterval,
-		agentID:        uuid.MustParse(cfg.ID),
-		sourceID:       uuid.MustParse(cfg.SourceID),
-		version:        cfg.Version,
-		scheduler:      s,
-		state:          defaultStatus,
-		client:         client,
-		close:          make(chan any),
-		store:          store,
-		collector:      collector,
+		updateInterval:      cfg.UpdateInterval,
+		agentID:             uuid.MustParse(cfg.ID),
+		sourceID:            uuid.MustParse(cfg.SourceID),
+		version:             cfg.Version,
+		scheduler:           s,
+		state:               defaultStatus,
+		client:              client,
+		close:               make(chan any),
+		store:               store,
+		collector:           collector,
+		legacyStatusEnabled: cfg.LegacyStatusEnabled,
 	}
 }
 
@@ -132,6 +139,12 @@ func (c *Console) setError(err error) {
 	c.state.Error = err
 }
 
+func (c *Console) clearError() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.state.Error = nil
+}
+
 // run is the main loop that sends status and inventory updates to the console.
 //
 // On each iteration:
@@ -144,12 +157,24 @@ func (c *Console) setError(err error) {
 //   - AgentUnauthorizedError (401): Invalid or expired JWT. Agent cannot authenticate.
 //
 // Transient errors are logged and stored in status.Error, but the loop continues.
+//
+// Backoff:
+// When the server is unreachable (transient errors), exponential backoff is used to avoid
+// hammering the server. On error, requests are skipped until the backoff interval expires.
+// The interval grows exponentially from updateInterval up to 60 seconds max. On success,
+// the backoff resets to allow immediate requests on the next tick.
 func (c *Console) run() {
 	tick := time.NewTicker(c.updateInterval)
 	defer func() {
 		tick.Stop()
 		zap.S().Named("console_service").Info("service stopped sending requests to console.rh.com")
 	}()
+
+	// use exponential backoff if server is unreachable.
+	nextAllowedTime := time.Time{}
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = c.updateInterval
+	b.MaxInterval = 60 * time.Second // Don't wait longer than 60s
 
 	for {
 		select {
@@ -158,10 +183,18 @@ func (c *Console) run() {
 			return
 		}
 
+		now := time.Now()
+
+		if !now.After(nextAllowedTime) {
+			zap.S().Debugw("waiting for backoff to expire", "next-allowed-time", nextAllowedTime)
+			continue
+		}
+
 		statusFuture := c.dispatchStatus()
 		select {
 		case result := <-statusFuture.C():
 			if result.Err != nil {
+				c.setError(result.Err)
 				switch result.Err.(type) {
 				case *errors.SourceGoneError:
 					zap.S().Named("console_service").Error("source is gone..stop sending requests")
@@ -172,40 +205,71 @@ func (c *Console) run() {
 				default:
 					zap.S().Named("console_service").Errorw("failed to send status to console", "error", result.Err)
 				}
-				c.setError(result.Err)
+			} else {
+				c.clearError()
 			}
 		case <-c.close:
 			statusFuture.Stop()
 			return
 		}
 
-		if inventory, changed, err := c.getInventoryIfChanged(context.TODO()); err == nil && changed {
-			zap.S().Named("console_service").Infow("inventory changed. updating inventory...", "hash", c.inventoryLastHash)
-
-			inventoryFuture := c.dispatchInventory(inventory)
-			select {
-			case result := <-inventoryFuture.C():
-				if result.Err != nil {
-					zap.S().Named("console_service").Errorw("failed to send inventory to console", "error", result.Err)
-					c.setError(result.Err)
-				}
-			case <-c.close:
-				inventoryFuture.Stop()
-				return
+		inventoryFuture := c.dispatchInventory()
+		select {
+		case result := <-inventoryFuture.C():
+			if result.Err != nil && !stderrors.Is(result.Err, errInventoryNotChanged) {
+				zap.S().Named("console_service").Errorw("failed to send inventory to console", "error", result.Err)
+				c.setError(result.Err)
+			} else if result.Err == nil {
+				c.clearError()
 			}
+		case <-c.close:
+			inventoryFuture.Stop()
+			return
+		}
+
+		// if there's an error start the backoff retry
+		if c.Status().Error != nil {
+			nextAllowedTime = now.Add(b.NextBackOff())
+		} else {
+			b.Reset()
+			nextAllowedTime = time.Time{}
 		}
 	}
 }
 
 func (c *Console) dispatchStatus() *models.Future[models.Result[any]] {
 	return c.scheduler.AddWork(func(ctx context.Context) (any, error) {
-		return struct{}{}, c.client.UpdateAgentStatus(ctx, c.agentID, c.sourceID, c.version, models.CollectorStatusType(c.collector.GetStatus().State))
+		collectorStatus := models.CollectorStatusType(c.collector.GetStatus().State)
+		if c.legacyStatusEnabled {
+			switch c.collector.GetStatus().State {
+			case models.CollectorStateReady:
+				collectorStatus = models.CollectorLegacyStatusWaitingForCredentials
+			case models.CollectorStateConnecting, models.CollectorStateCollecting:
+				collectorStatus = models.CollectorLegacyStatusCollecting
+			case models.CollectorStateCollected:
+				collectorStatus = models.CollectorLegacyStatusCollected
+			}
+		}
+
+		return struct{}{}, c.client.UpdateAgentStatus(ctx, c.agentID, c.sourceID, c.version, collectorStatus)
 	})
 }
 
-func (c *Console) dispatchInventory(inventory []byte) *models.Future[models.Result[any]] {
+func (c *Console) dispatchInventory() *models.Future[models.Result[any]] {
 	return c.scheduler.AddWork(func(ctx context.Context) (any, error) {
-		return struct{}{}, c.client.UpdateSourceStatus(ctx, c.sourceID, bytes.NewReader(inventory))
+		data, changed, err := c.getInventoryIfChanged(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if !changed {
+			zap.S().Named("console_service").Debugw("inventory not changed. skip updating inventory...", "hash", c.inventoryLastHash)
+			return nil, errInventoryNotChanged
+		}
+		inventory := models.Inventory{}
+		if err := json.Unmarshal(data, &inventory); err != nil {
+			return nil, err
+		}
+		return struct{}{}, c.client.UpdateSourceStatus(ctx, c.sourceID, c.agentID, inventory)
 	})
 }
 

@@ -209,7 +209,8 @@ var _ = Describe("Console Service", func() {
 			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
 			Expect(consoleSrv).NotTo(BeNil())
 
-			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+			err = consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() models.ConsoleStatusType {
 				return consoleSrv.Status().Target
@@ -231,7 +232,8 @@ var _ = Describe("Console Service", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
-			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+			err = consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(requestReceived, 500*time.Millisecond).Should(Receive())
 		})
@@ -251,7 +253,8 @@ var _ = Describe("Console Service", func() {
 
 			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
 
-			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+			err = consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() models.ConsoleStatusType {
 				return consoleSrv.Status().Target
@@ -484,16 +487,23 @@ var _ = Describe("Console Service", func() {
 			Expect(inventoryCount).To(Equal(1))
 		})
 
-		It("should not send more inventory after unauthorized error (401)", func() {
+		It("should not send more inventory after source gone error (410)", func() {
+			statusCount := 0
 			inventoryCount := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if strings.Contains(r.URL.Path, "agents") {
-					w.WriteHeader(http.StatusOK)
+					statusCount++
+					if statusCount == 1 {
+						w.WriteHeader(http.StatusOK)
+						return
+					}
+					// Second status call returns 410, loop should exit
+					w.WriteHeader(http.StatusGone)
 					return
 				}
 				if strings.Contains(r.URL.Path, "sources") {
 					inventoryCount++
-					w.WriteHeader(http.StatusUnauthorized)
+					w.WriteHeader(http.StatusOK)
 					return
 				}
 				w.WriteHeader(http.StatusOK)
@@ -510,18 +520,21 @@ var _ = Describe("Console Service", func() {
 			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
 			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
 
-			// Wait for inventory to be sent and fail
+			// Wait for first tick (status OK, inventory OK) and second tick (status 410, loop exits)
 			time.Sleep(300 * time.Millisecond)
 
-			// Inventory should have been attempted once
+			// Inventory should have been sent once (first tick only)
 			Expect(inventoryCount).To(Equal(1))
 
-			// Change inventory to trigger a new send attempt
+			// Change inventory to trigger a new send attempt if loop were still running
 			err = st.Inventory().Save(context.Background(), []byte(`{"vms": [{"name": "vm2"}]}`))
 			Expect(err).NotTo(HaveOccurred())
 
 			// Wait for more ticks
 			time.Sleep(300 * time.Millisecond)
+
+			// Inventory count should still be 1 since loop exited on 410
+			Expect(inventoryCount).To(Equal(1))
 
 			// Error should be stored in status
 			status := consoleSrv.Status()
@@ -529,12 +542,14 @@ var _ = Describe("Console Service", func() {
 		})
 
 		It("should store error in status when inventory update fails", func() {
+			inventoryReceived := make(chan bool, 1)
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if strings.Contains(r.URL.Path, "agents") {
 					w.WriteHeader(http.StatusOK)
 					return
 				}
 				if strings.Contains(r.URL.Path, "sources") {
+					inventoryReceived <- true
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
@@ -552,13 +567,153 @@ var _ = Describe("Console Service", func() {
 			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
 			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
 
-			// Wait for inventory to be sent and fail
-			time.Sleep(300 * time.Millisecond)
+			// Wait for first inventory request to complete
+			Eventually(inventoryReceived, 200*time.Millisecond).Should(Receive())
 
-			// Error should be stored in status
+			// Check error immediately after first tick before next status clears it
+			Eventually(func() error {
+				return consoleSrv.Status().Error
+			}, 100*time.Millisecond).ShouldNot(BeNil())
+		})
+
+		It("should not clear status error when inventory is unchanged", func() {
+			requestCount := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requestCount++
+				if strings.Contains(r.URL.Path, "agents") {
+					// First status request fails, subsequent ones succeed
+					if requestCount == 1 {
+						w.WriteHeader(http.StatusInternalServerError)
+						return
+					}
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+				if strings.Contains(r.URL.Path, "sources") {
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer server.Close()
+
+			client, err := console.NewConsoleClient(server.URL, "")
+			Expect(err).NotTo(HaveOccurred())
+
+			// No inventory in store - inventory dispatch will return sentinel error
+			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
+			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+
+			// Wait for first tick to complete (status fails, inventory unchanged)
+			time.Sleep(150 * time.Millisecond)
+
+			// Error should still be set because inventory unchanged doesn't clear it
 			status := consoleSrv.Status()
 			Expect(status.Error).NotTo(BeNil())
-			Expect(status.Error.Error()).To(ContainSubstring("failed to update source inventory"))
+		})
+	})
+
+	Describe("Backoff", func() {
+		It("should apply exponential backoff on transient errors", func() {
+			requestTimes := make(chan time.Time, 20)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.Contains(r.URL.Path, "agents") {
+					requestTimes <- time.Now()
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer server.Close()
+
+			client, err := console.NewConsoleClient(server.URL, "")
+			Expect(err).NotTo(HaveOccurred())
+
+			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
+			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+
+			// Collect request times
+			var times []time.Time
+			timeout := time.After(500 * time.Millisecond)
+		collectLoop:
+			for {
+				select {
+				case t := <-requestTimes:
+					times = append(times, t)
+				case <-timeout:
+					break collectLoop
+				}
+			}
+
+			// With backoff, we should have fewer requests than without
+			// Without backoff at 50ms interval over 500ms we'd have ~10 requests
+			// With backoff we should have fewer due to increasing delays
+			Expect(len(times)).To(BeNumerically(">=", 1))
+			Expect(len(times)).To(BeNumerically("<", 10))
+		})
+
+		It("should reset backoff after successful request", func() {
+			failCount := 2
+			requestCount := 0
+			requestTimes := make(chan time.Time, 20)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.Contains(r.URL.Path, "agents") {
+					requestTimes <- time.Now()
+					requestCount++
+					if requestCount <= failCount {
+						w.WriteHeader(http.StatusInternalServerError)
+						return
+					}
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer server.Close()
+
+			client, err := console.NewConsoleClient(server.URL, "")
+			Expect(err).NotTo(HaveOccurred())
+
+			// Save inventory so it gets sent and clears error
+			err = st.Inventory().Save(context.Background(), []byte(`{"vms": [{"name": "vm1"}]}`))
+			Expect(err).NotTo(HaveOccurred())
+
+			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
+			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+
+			// Wait for recovery
+			time.Sleep(400 * time.Millisecond)
+
+			// After success, error should be cleared
+			Eventually(func() error {
+				return consoleSrv.Status().Error
+			}, 500*time.Millisecond).Should(BeNil())
+		})
+
+		It("should skip requests while backoff is active", func() {
+			statusCount := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.Contains(r.URL.Path, "agents") {
+					statusCount++
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer server.Close()
+
+			client, err := console.NewConsoleClient(server.URL, "")
+			Expect(err).NotTo(HaveOccurred())
+
+			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
+			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+
+			// Wait for multiple tick intervals
+			time.Sleep(300 * time.Millisecond)
+
+			// With 50ms update interval and 300ms wait, without backoff we'd have ~6 requests
+			// With backoff active, requests should be skipped
+			Expect(statusCount).To(BeNumerically("<", 6))
 		})
 	})
 })

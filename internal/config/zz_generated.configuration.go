@@ -219,6 +219,7 @@ func (a *Agent) ToOption() AgentOption {
 		to.DataFolder = a.DataFolder
 		to.OpaPoliciesFolder = a.OpaPoliciesFolder
 		to.UpdateInterval = a.UpdateInterval
+		to.LegacyStatusEnabled = a.LegacyStatusEnabled
 	}
 }
 
@@ -233,6 +234,7 @@ func (a *Agent) DebugMap() map[string]any {
 	debugMap["DataFolder"] = helpers.DebugValue(a.DataFolder, false)
 	debugMap["OpaPoliciesFolder"] = helpers.DebugValue(a.OpaPoliciesFolder, false)
 	debugMap["UpdateInterval"] = helpers.DebugValue(a.UpdateInterval, false)
+	debugMap["LegacyStatusEnabled"] = helpers.DebugValue(a.LegacyStatusEnabled, false)
 	return debugMap
 }
 
@@ -305,6 +307,13 @@ func WithOpaPoliciesFolder(opaPoliciesFolder string) AgentOption {
 func WithUpdateInterval(updateInterval time.Duration) AgentOption {
 	return func(a *Agent) {
 		a.UpdateInterval = updateInterval
+	}
+}
+
+// WithLegacyStatusEnabled returns an option that can set LegacyStatusEnabled on a Agent
+func WithLegacyStatusEnabled(legacyStatusEnabled bool) AgentOption {
+	return func(a *Agent) {
+		a.LegacyStatusEnabled = legacyStatusEnabled
 	}
 }
 

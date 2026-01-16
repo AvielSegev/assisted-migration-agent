@@ -44,6 +44,12 @@ const (
 	CollectorStatusCollecting CollectorStatusType = "collecting"
 	CollectorStatusCollected  CollectorStatusType = "collected"
 	CollectorStatusError      CollectorStatusType = "error"
+
+	// V1 agent status
+	CollectorLegacyStatusWaitingForCredentials CollectorStatusType = "waiting-for-credentials"
+	CollectorLegacyStatusCollecting            CollectorStatusType = "gathering-initial-inventory"
+	CollectorLegacyStatusError                 CollectorStatusType = "error"
+	CollectorLegacyStatusCollected                                 = "up-to-date"
 )
 
 type AgentStatus struct {

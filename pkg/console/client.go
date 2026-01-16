@@ -2,13 +2,15 @@ package console
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/google/uuid"
+	externalRef0 "github.com/kubev2v/migration-planner/api/v1alpha1"
 	apiAgent "github.com/kubev2v/migration-planner/api/v1alpha1/agent"
 	agentClient "github.com/kubev2v/migration-planner/pkg/client"
+	"go.uber.org/zap"
 
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	serviceErrs "github.com/kubev2v/assisted-migration-agent/pkg/errors"
@@ -40,11 +42,14 @@ func NewConsoleClient(baseURL string, jwt string) (*Client, error) {
 // PUT /api/v1/agents/{id}/status
 func (c *Client) UpdateAgentStatus(ctx context.Context, agentID uuid.UUID, sourceID uuid.UUID, version string, collectorStatus models.CollectorStatusType) error {
 	body := apiAgent.AgentStatusUpdate{
-		Status:     string(collectorStatus),
-		StatusInfo: string(collectorStatus),
-		SourceId:   sourceID,
-		Version:    version,
+		CredentialUrl: "http://10.10.10.1:33443",
+		Status:        string(collectorStatus),
+		StatusInfo:    string(collectorStatus),
+		SourceId:      sourceID,
+		Version:       "version",
 	}
+
+	zap.S().Debugw("update agent status", "body", body)
 
 	resp, err := c.httpClient.UpdateAgentStatus(ctx, agentID, body)
 	if err != nil {
@@ -70,8 +75,18 @@ func (c *Client) UpdateAgentStatus(ctx context.Context, agentID uuid.UUID, sourc
 
 // UpdateSourceStatus sends source inventory to console.redhat.com
 // PUT /api/v1/sources/{id}/status
-func (c *Client) UpdateSourceStatus(ctx context.Context, sourceID uuid.UUID, inventory io.Reader) error {
-	resp, err := c.httpClient.UpdateSourceInventoryWithBody(ctx, sourceID, "application/json", inventory)
+func (c *Client) UpdateSourceStatus(ctx context.Context, sourceID, agentID uuid.UUID, inventory models.Inventory) error {
+	inv := externalRef0.Inventory{}
+	if err := json.Unmarshal(inventory.Data, &inv); err != nil {
+		return fmt.Errorf("failed to unmarshal inventory: %w", err)
+	}
+
+	body := apiAgent.SourceStatusUpdate{
+		AgentId:   agentID,
+		Inventory: inv,
+	}
+
+	resp, err := c.httpClient.UpdateSourceInventory(ctx, sourceID, body)
 	if err != nil {
 		return err
 	}

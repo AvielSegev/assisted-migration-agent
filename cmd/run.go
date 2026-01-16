@@ -245,6 +245,7 @@ func registerAgentFlags(flagSet *pflag.FlagSet, config *config.Configuration) {
 	flagSet.StringVar(&config.Agent.Version, "version", config.Agent.Version, "Agent version to report to console")
 	flagSet.IntVar(&config.Agent.NumWorkers, "num-workers", config.Agent.NumWorkers, "Number of scheduler workers")
 	flagSet.StringVar(&config.Agent.DataFolder, "data-folder", config.Agent.DataFolder, "Path to the persistent data folder")
+	flagSet.BoolVar(&config.Agent.LegacyStatusEnabled, "legacy-status-enabled", config.Agent.LegacyStatusEnabled, "Use agent's legacy status like waiting-for-credentials")
 }
 
 func registerConsoleFlags(flagSet *pflag.FlagSet, config *config.Configuration) {

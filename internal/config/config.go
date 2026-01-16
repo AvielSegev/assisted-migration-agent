@@ -28,14 +28,15 @@ type Server struct {
 }
 
 type Agent struct {
-	Mode              string        `debugmap:"visible" default:"disconnected"`
-	ID                string        `debugmap:"visible"`
-	SourceID          string        `debugmap:"visible"`
-	Version           string        `debugmap:"visible"`
-	NumWorkers        int           `debugmap:"visible" default:"3"`
-	DataFolder        string        `debugmap:"visible"`
-	OpaPoliciesFolder string        `debugmap:"visible"`
-	UpdateInterval    time.Duration `debugmap:"visible" default:"5s"`
+	Mode                string        `debugmap:"visible" default:"disconnected"`
+	ID                  string        `debugmap:"visible"`
+	SourceID            string        `debugmap:"visible"`
+	Version             string        `debugmap:"visible"`
+	NumWorkers          int           `debugmap:"visible" default:"3"`
+	DataFolder          string        `debugmap:"visible"`
+	OpaPoliciesFolder   string        `debugmap:"visible"`
+	UpdateInterval      time.Duration `debugmap:"visible" default:"5s"`
+	LegacyStatusEnabled bool          `debugmap:"visible" default:"true"`
 }
 
 type Console struct {
