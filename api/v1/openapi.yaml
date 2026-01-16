@@ -36,6 +36,8 @@ paths:
                 $ref: '#/components/schemas/AgentStatus'
         '400':
           description: Invalid request
+        '409':
+          description: Conflict
         '500':
           description: Internal server error
 

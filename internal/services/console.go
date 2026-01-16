@@ -44,6 +44,7 @@ type Console struct {
 	inventoryLastHash   string // holds the hash of the last sent inventory
 	store               *store.Store
 	legacyStatusEnabled bool
+	fatalStopped        bool
 }
 
 func NewConsoleService(cfg config.Agent, s *scheduler.Scheduler, client *console.Client, collector Collector, st *store.Store) *Console {
@@ -99,6 +100,14 @@ func (c *Console) GetMode(ctx context.Context) (models.AgentMode, error) {
 func (c *Console) SetMode(ctx context.Context, mode models.AgentMode) error {
 	prevMode, _ := c.GetMode(ctx)
 
+	if c.isFatalStopped() {
+		// TODO: Should we change the status in db to disconnected in this case to prevent user
+		// from restarting the agent and try to connect to console again?
+		// If we don't save the disconnected state, at each restart,if the mode is connected, the agent
+		// will do another request and exit again.
+		return errors.NewModeConflictError("console reporting stopped after receiving 401/410 from the server")
+	}
+
 	err := c.store.Configuration().Save(ctx, &models.Configuration{AgentMode: mode})
 	if err != nil {
 		return err
@@ -119,7 +128,10 @@ func (c *Console) SetMode(ctx context.Context, mode models.AgentMode) error {
 		c.mu.Unlock()
 		if prevMode == models.AgentModeConnected {
 			zap.S().Debugw("stopping run loop for disconnected mode")
-			c.close <- struct{}{}
+			select {
+			case c.close <- struct{}{}:
+			default:
+			}
 		}
 	}
 
@@ -143,6 +155,18 @@ func (c *Console) clearError() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.state.Error = nil
+}
+
+func (c *Console) setFatalStopped() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.fatalStopped = true
+}
+
+func (c *Console) isFatalStopped() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.fatalStopped
 }
 
 // run is the main loop that sends status and inventory updates to the console.
@@ -203,9 +227,11 @@ func (c *Console) run() {
 				switch result.Err.(type) {
 				case *errors.SourceGoneError:
 					zap.S().Named("console_service").Error("source is gone..stop sending requests")
+					c.setFatalStopped()
 					return
 				case *errors.AgentUnauthorizedError:
 					zap.S().Named("console_service").Error("agent not authenticated..stop sending requests")
+					c.setFatalStopped()
 					return
 				default:
 					zap.S().Named("console_service").Errorw("failed to dispatch to console", "error", result.Err)

@@ -106,6 +106,27 @@ func IsInvalidStateError(err error) bool {
 	return errors.As(err, &e)
 }
 
+// ModeConflictError indicates a valid request that conflicts with prior fatal state.
+type ModeConflictError struct {
+	Reason string
+}
+
+func NewModeConflictError(reason string) *ModeConflictError {
+	return &ModeConflictError{Reason: reason}
+}
+
+func (e *ModeConflictError) Error() string {
+	if e.Reason != "" {
+		return fmt.Sprintf("mode change conflict: %s", e.Reason)
+	}
+	return "mode change conflict"
+}
+
+func IsModeConflictError(err error) bool {
+	var e *ModeConflictError
+	return errors.As(err, &e)
+}
+
 func NewVCenterError(err error) *VCenterError {
 	vErr := &VCenterError{msg: "unknown error"}
 	if strings.Contains(err.Error(), "Login failure") ||

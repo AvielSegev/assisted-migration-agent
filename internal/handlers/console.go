@@ -7,6 +7,7 @@ import (
 
 	v1 "github.com/kubev2v/assisted-migration-agent/api/v1"
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
+	"github.com/kubev2v/assisted-migration-agent/pkg/errors"
 )
 
 // GetAgentStatus returns the current agent status
@@ -40,6 +41,10 @@ func (h *Handler) SetAgentMode(c *gin.Context) {
 	}
 
 	if err := h.consoleSrv.SetMode(c.Request.Context(), mode); err != nil {
+		if errors.IsModeConflictError(err) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to set agent mode"})
 		return
 	}
