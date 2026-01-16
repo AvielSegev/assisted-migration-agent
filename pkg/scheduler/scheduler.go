@@ -75,9 +75,7 @@ func (s *Scheduler) AddWork(w models.Work[any]) *models.Future[models.Result[any
 	case <-s.mainCtx.Done():
 		// we're closing here so send a result with an error
 		c <- models.Result[any]{Err: context.Canceled}
-	default:
-		s.wg.Add(1)
-		s.work <- workRequest{w, c, ctx}
+	case s.work <- workRequest{w, c, ctx}:
 	}
 
 	return models.NewFuture(c, cancel)
@@ -114,6 +112,7 @@ func (s *Scheduler) dispatch() {
 	for s.workers.Len() > 0 && s.workQueue.Len() > 0 {
 		r := s.workQueue.Pop()
 		worker := s.workers.Pop()
+		s.wg.Add(1)
 		go worker.Work(r)
 	}
 }
