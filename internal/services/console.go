@@ -148,8 +148,8 @@ func (c *Console) clearError() {
 // run is the main loop that sends status and inventory updates to the console.
 //
 // On each iteration:
-//  1. Dispatch status update and block until complete. Handle errors (fatal errors stop the loop).
-//  2. If inventory changed since last send (hash comparison), dispatch inventory update and block until complete.
+//  1. Dispatch status and inventory updates (combined in single call) and block until complete.
+//  2. Handle errors (fatal errors stop the loop, transient errors trigger backoff).
 //  3. Wait for next tick or close signal.
 //
 // Fatal errors (stop the loop, no retry):
@@ -157,6 +157,7 @@ func (c *Console) clearError() {
 //   - AgentUnauthorizedError (401): Invalid or expired JWT. Agent cannot authenticate.
 //
 // Transient errors are logged and stored in status.Error, but the loop continues.
+// If inventory hasn't changed, the error state is preserved (not cleared or set).
 //
 // Backoff:
 // When the server is unreachable (transient errors), exponential backoff is used to avoid
@@ -190,10 +191,14 @@ func (c *Console) run() {
 			continue
 		}
 
-		statusFuture := c.dispatchStatus()
+		future := c.dispatch()
+
 		select {
-		case result := <-statusFuture.C():
+		case result := <-future.C():
 			if result.Err != nil {
+				if stderrors.Is(result.Err, errInventoryNotChanged) {
+					goto backoff
+				}
 				c.setError(result.Err)
 				switch result.Err.(type) {
 				case *errors.SourceGoneError:
@@ -203,31 +208,18 @@ func (c *Console) run() {
 					zap.S().Named("console_service").Error("agent not authenticated..stop sending requests")
 					return
 				default:
-					zap.S().Named("console_service").Errorw("failed to send status to console", "error", result.Err)
+					zap.S().Named("console_service").Errorw("failed to dispatch to console", "error", result.Err)
 				}
 			} else {
 				c.clearError()
 			}
 		case <-c.close:
-			statusFuture.Stop()
+			future.Stop()
 			return
 		}
 
-		inventoryFuture := c.dispatchInventory()
-		select {
-		case result := <-inventoryFuture.C():
-			if result.Err != nil && !stderrors.Is(result.Err, errInventoryNotChanged) {
-				zap.S().Named("console_service").Errorw("failed to send inventory to console", "error", result.Err)
-				c.setError(result.Err)
-			} else if result.Err == nil {
-				c.clearError()
-			}
-		case <-c.close:
-			inventoryFuture.Stop()
-			return
-		}
-
-		// if there's an error start the backoff retry
+	backoff:
+		// if there's an error activate backoff, otherwise reset it
 		if c.Status().Error != nil {
 			nextAllowedTime = now.Add(b.NextBackOff())
 		} else {
@@ -237,7 +229,7 @@ func (c *Console) run() {
 	}
 }
 
-func (c *Console) dispatchStatus() *models.Future[models.Result[any]] {
+func (c *Console) dispatch() *models.Future[models.Result[any]] {
 	return c.scheduler.AddWork(func(ctx context.Context) (any, error) {
 		collectorStatus := models.CollectorStatusType(c.collector.GetStatus().State)
 		if c.legacyStatusEnabled {
@@ -251,12 +243,11 @@ func (c *Console) dispatchStatus() *models.Future[models.Result[any]] {
 			}
 		}
 
-		return struct{}{}, c.client.UpdateAgentStatus(ctx, c.agentID, c.sourceID, c.version, collectorStatus)
-	})
-}
+		if err := c.client.UpdateAgentStatus(ctx, c.agentID, c.sourceID, c.version, collectorStatus); err != nil {
+			return nil, err
+		}
 
-func (c *Console) dispatchInventory() *models.Future[models.Result[any]] {
-	return c.scheduler.AddWork(func(ctx context.Context) (any, error) {
+		// dispatch inventory
 		data, changed, err := c.getInventoryIfChanged(ctx)
 		if err != nil {
 			return nil, err
@@ -269,7 +260,11 @@ func (c *Console) dispatchInventory() *models.Future[models.Result[any]] {
 		if err := json.Unmarshal(data, &inventory); err != nil {
 			return nil, err
 		}
-		return struct{}{}, c.client.UpdateSourceStatus(ctx, c.sourceID, c.agentID, inventory)
+		if err := c.client.UpdateSourceStatus(ctx, c.sourceID, c.agentID, inventory); err != nil {
+			return nil, err
+		}
+
+		return struct{}{}, nil
 	})
 }
 

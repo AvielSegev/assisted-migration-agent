@@ -30,9 +30,8 @@ func main() {
 			ServerMode: "dev",
 		}),
 		config.WithAgent(config.Agent{
-			ID: uuid.NewString(),
-		}),
-		config.WithAgent(config.Agent{
+			ID:             uuid.NewString(),
+			Version:        "v0.0.0",
 			NumWorkers:     3,
 			Mode:           "disconnected",
 			UpdateInterval: 5 * time.Second,

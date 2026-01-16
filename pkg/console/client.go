@@ -26,7 +26,7 @@ func NewConsoleClient(baseURL string, jwt string) (*Client, error) {
 		if jwt == "" {
 			return nil
 		}
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer: %s", jwt))
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", jwt))
 		return nil
 	}))
 	if err != nil {
@@ -46,7 +46,7 @@ func (c *Client) UpdateAgentStatus(ctx context.Context, agentID uuid.UUID, sourc
 		Status:        string(collectorStatus),
 		StatusInfo:    string(collectorStatus),
 		SourceId:      sourceID,
-		Version:       "version",
+		Version:       version,
 	}
 
 	zap.S().Debugw("update agent status", "body", body)

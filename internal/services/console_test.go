@@ -275,11 +275,11 @@ var _ = Describe("Console Service", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
-			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+			Expect(consoleSrv.SetMode(context.Background(), models.AgentModeConnected)).To(BeNil())
 
 			Eventually(requestReceived, 500*time.Millisecond).Should(Receive())
 
-			consoleSrv.SetMode(context.Background(), models.AgentModeDisconnected)
+			Expect(consoleSrv.SetMode(context.Background(), models.AgentMode(models.ConsoleStatusDisconnected))).To(BeNil())
 
 			Eventually(func() models.ConsoleStatusType {
 				return consoleSrv.Status().Target
@@ -333,7 +333,7 @@ var _ = Describe("Console Service", func() {
 			collector.SetState(models.CollectorStateCollected)
 
 			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
-			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+			Expect(consoleSrv.SetMode(context.Background(), models.AgentModeConnected)).To(BeNil())
 
 			Eventually(statusReceived, 500*time.Millisecond).Should(Receive())
 
@@ -367,7 +367,7 @@ var _ = Describe("Console Service", func() {
 			collector.SetState(models.CollectorStateCollected)
 
 			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
-			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+			Expect(consoleSrv.SetMode(context.Background(), models.AgentModeConnected)).To(BeNil())
 
 			Eventually(statusReceived, 500*time.Millisecond).Should(Receive())
 
@@ -393,7 +393,7 @@ var _ = Describe("Console Service", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
-			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+			Expect(consoleSrv.SetMode(context.Background(), models.AgentModeConnected)).To(BeNil())
 
 			// Should receive multiple requests despite errors
 			Eventually(requestReceived, 500*time.Millisecond).Should(Receive())
@@ -423,7 +423,7 @@ var _ = Describe("Console Service", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
-			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+			Expect(consoleSrv.SetMode(context.Background(), models.AgentModeConnected)).To(BeNil())
 
 			// Should receive status update
 			Eventually(statusReceived, 500*time.Millisecond).Should(Receive())
@@ -451,7 +451,7 @@ var _ = Describe("Console Service", func() {
 			// No inventory saved to store
 
 			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
-			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+			Expect(consoleSrv.SetMode(context.Background(), models.AgentModeConnected)).To(BeNil())
 
 			// Should receive status update
 			Eventually(statusReceived, 500*time.Millisecond).Should(Receive())
@@ -478,7 +478,7 @@ var _ = Describe("Console Service", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
-			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+			Expect(consoleSrv.SetMode(context.Background(), models.AgentModeConnected)).To(BeNil())
 
 			// Wait for multiple ticks
 			time.Sleep(300 * time.Millisecond)
@@ -518,7 +518,7 @@ var _ = Describe("Console Service", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
-			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+			Expect(consoleSrv.SetMode(context.Background(), models.AgentModeConnected)).To(BeNil())
 
 			// Wait for first tick (status OK, inventory OK) and second tick (status 410, loop exits)
 			time.Sleep(300 * time.Millisecond)
@@ -565,7 +565,7 @@ var _ = Describe("Console Service", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
-			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+			Expect(consoleSrv.SetMode(context.Background(), models.AgentModeConnected)).To(BeNil())
 
 			// Wait for first inventory request to complete
 			Eventually(inventoryReceived, 200*time.Millisecond).Should(Receive())
@@ -602,7 +602,7 @@ var _ = Describe("Console Service", func() {
 
 			// No inventory in store - inventory dispatch will return sentinel error
 			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
-			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+			Expect(consoleSrv.SetMode(context.Background(), models.AgentModeConnected)).To(BeNil())
 
 			// Wait for first tick to complete (status fails, inventory unchanged)
 			time.Sleep(150 * time.Millisecond)
@@ -630,7 +630,7 @@ var _ = Describe("Console Service", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
-			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+			Expect(consoleSrv.SetMode(context.Background(), models.AgentModeConnected)).To(BeNil())
 
 			// Collect request times
 			var times []time.Time
@@ -679,7 +679,7 @@ var _ = Describe("Console Service", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
-			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+			Expect(consoleSrv.SetMode(context.Background(), models.AgentModeConnected)).To(BeNil())
 
 			// Wait for recovery
 			time.Sleep(400 * time.Millisecond)
@@ -706,7 +706,7 @@ var _ = Describe("Console Service", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			consoleSrv := services.NewConsoleService(cfg, sched, client, collector, st)
-			consoleSrv.SetMode(context.Background(), models.AgentModeConnected)
+			Expect(consoleSrv.SetMode(context.Background(), models.AgentModeConnected)).To(BeNil())
 
 			// Wait for multiple tick intervals
 			time.Sleep(300 * time.Millisecond)
