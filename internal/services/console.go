@@ -100,6 +100,10 @@ func (c *Console) GetMode(ctx context.Context) (models.AgentMode, error) {
 func (c *Console) SetMode(ctx context.Context, mode models.AgentMode) error {
 	prevMode, _ := c.GetMode(ctx)
 
+	if prevMode == mode {
+		return nil
+	}
+
 	if c.isFatalStopped() {
 		// TODO: Should we change the status in db to disconnected in this case to prevent user
 		// from restarting the agent and try to connect to console again?
@@ -128,10 +132,7 @@ func (c *Console) SetMode(ctx context.Context, mode models.AgentMode) error {
 		c.mu.Unlock()
 		if prevMode == models.AgentModeConnected {
 			zap.S().Debugw("stopping run loop for disconnected mode")
-			select {
-			case c.close <- struct{}{}:
-			default:
-			}
+			c.close <- struct{}{}
 		}
 	}
 
