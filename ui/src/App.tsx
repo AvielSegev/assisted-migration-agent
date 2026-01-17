@@ -18,13 +18,13 @@ function App() {
     const { mode, initialized: agentInitialized } = useAppSelector(
         (state) => state.agent
     );
-    const { inventory, status, error, initialized: collectorInitialized } = useAppSelector(
+    const { inventory, status, error, loading: collectorLoading, initialized: collectorInitialized } = useAppSelector(
         (state) => state.collector
     );
 
     const isLoading = !agentInitialized || !collectorInitialized;
     const isDataShared = mode === AgentStatusModeEnum.Connected;
-    const isCollecting = isCollectorRunning(status);
+    const isCollecting = collectorLoading || isCollectorRunning(status);
 
     const handleCollect = useCallback(async (credentials: Credentials, dataShared: boolean) => {
         dispatch(startCollection({
@@ -62,6 +62,10 @@ function App() {
         if (collectorInitialized && isCollecting && !pollingStarted.current) {
             pollingStarted.current = true;
             collectorPollingService.start(1500);
+        }
+        // Reset the ref when collection stops so it can restart on next collection
+        if (collectorInitialized && !isCollecting && pollingStarted.current) {
+            pollingStarted.current = false;
         }
     }, [collectorInitialized, isCollecting, collectorPollingService]);
 

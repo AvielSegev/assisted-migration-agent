@@ -33,6 +33,7 @@ interface CollectorState {
   error: ApiError | null;
   inventory: Inventory | null;
   loading: boolean;
+  inventoryLoading: boolean;
   initialized: boolean;
 }
 
@@ -41,6 +42,7 @@ const initialState: CollectorState = {
   error: null,
   inventory: null,
   loading: false,
+  inventoryLoading: false,
   initialized: false,
 };
 
@@ -151,11 +153,16 @@ const collectorSlice = createSlice({
         state.loading = false;
         state.error = action.payload as ApiError;
       })
+      .addCase(fetchInventory.pending, (state) => {
+        state.inventoryLoading = true;
+      })
       .addCase(fetchInventory.fulfilled, (state, action) => {
+        state.inventoryLoading = false;
         state.initialized = true;
         state.inventory = action.payload;
       })
       .addCase(fetchInventory.rejected, (state, action) => {
+        state.inventoryLoading = false;
         state.initialized = true;
         state.error = action.payload as ApiError;
       });
