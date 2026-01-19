@@ -386,10 +386,11 @@ components:
           type: string
           enum:
             - disconnected
-            - connecting
             - connected
-            - error
           description: Current console connection status
+        error:
+          type: string
+          description: Connection error description
 
     AgentModeRequest:
       type: object

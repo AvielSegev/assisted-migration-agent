@@ -102,7 +102,7 @@ var _ = Describe("CollectorService", func() {
 
 		st = store.NewStore(db)
 		sched = scheduler.NewScheduler(1)
-		srv = services.NewCollectorService(sched, &mockWorkBuilder{store: st})
+		srv = services.NewCollectorService(sched, st, &mockWorkBuilder{store: st})
 	})
 
 	AfterEach(func() {
@@ -158,7 +158,7 @@ var _ = Describe("CollectorService", func() {
 		})
 
 		It("should return error when credentials verification fails", func() {
-			srv = services.NewCollectorService(sched, &mockWorkBuilder{
+			srv = services.NewCollectorService(sched, st, &mockWorkBuilder{
 				store:     st,
 				verifyErr: errors.New("connection refused"),
 			})
@@ -178,7 +178,7 @@ var _ = Describe("CollectorService", func() {
 		})
 
 		It("should set error state when collection fails", func() {
-			srv = services.NewCollectorService(sched, &mockWorkBuilder{
+			srv = services.NewCollectorService(sched, st, &mockWorkBuilder{
 				store:      st,
 				collectErr: errors.New("collection failed"),
 			})
@@ -201,7 +201,7 @@ var _ = Describe("CollectorService", func() {
 		})
 
 		It("should set error state when processor fails", func() {
-			srv = services.NewCollectorService(sched, &mockWorkBuilder{
+			srv = services.NewCollectorService(sched, st, &mockWorkBuilder{
 				store:      st,
 				processErr: errors.New("processing failed"),
 			})

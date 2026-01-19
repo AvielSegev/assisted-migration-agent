@@ -120,3 +120,35 @@ Run all validations:
 ```bash
 make validate-all
 ```
+
+## Testing Against Stage
+
+To test the agent against the staging backend, you need to generate a JWT token and run the agent with authentication enabled.
+
+### Generate JWT Token
+
+Use the migration-planner CLI to generate a JWT:
+
+```bash
+../migration-planner/bin/planner sso token \
+  --org 12345678 \
+  --private-key ./privatekey \
+  --username your-username \
+  --source-id <source-uuid> \
+  --kid <key-id> > ./jwt
+```
+
+### Run Agent with Stage Backend
+
+The `--agent-id` can be any valid UUID. Generate one with `uuidgen`.
+
+```bash
+bin/agent run \
+  --legacy-status-enabled \
+  --agent-id $(uuidgen) \
+  --source-id <source-uuid> \
+  --data-folder . \
+  --authentication-enabled \
+  --authentication-jwt-filepath ./jwt \
+  --console-url https://console.stage.redhat.com/api/migration-assessment/
+```

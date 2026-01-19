@@ -238,15 +238,6 @@ func WithOffset(offset uint64) ListOption {
 }
 
 // apiFieldToDBColumn maps API field names to database column expressions.
-var apiFieldToDBColumn = map[string]string{
-	"name":         `v."VM"`,
-	"vCenterState": `v."Powerstate"`,
-	"cluster":      `v."Cluster"`,
-	"diskSize":     `COALESCE(d.total_disk, 0)`,
-	"memory":       `v."Memory"`,
-	"issues":       `issue_count`,
-}
-
 // WithDefaultSort applies default sorting by VM ID.
 func WithDefaultSort() ListOption {
 	return func(b sq.SelectBuilder) sq.SelectBuilder {
@@ -256,6 +247,15 @@ func WithDefaultSort() ListOption {
 
 // WithSort applies multi-field sorting.
 func WithSort(sorts []SortParam) ListOption {
+	var apiFieldToDBColumn = map[string]string{
+		"name":         `v."VM"`,
+		"vCenterState": `v."Powerstate"`,
+		"cluster":      `v."Cluster"`,
+		"diskSize":     `COALESCE(d.total_disk, 0)`,
+		"memory":       `v."Memory"`,
+		"issues":       `issue_count`,
+	}
+
 	return func(b sq.SelectBuilder) sq.SelectBuilder {
 		var orderClauses []string
 		for _, s := range sorts {

@@ -107,7 +107,7 @@ func NewRunCommand(cfg *config.Configuration) *cobra.Command {
 
 			// create collector service
 			workBuilder := collectorv1.NewV1WorkBuilder(s, cfg.Agent.DataFolder, cfg.Agent.OpaPoliciesFolder)
-			collectorSrv := services.NewCollectorService(sched, workBuilder)
+			collectorSrv := services.NewCollectorService(sched, s, workBuilder)
 
 			consoleSrv := services.NewConsoleService(cfg.Agent, sched, consoleClient, collectorSrv, s)
 			inventorySrv := services.NewInventoryService(s)

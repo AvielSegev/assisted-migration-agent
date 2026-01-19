@@ -10,7 +10,6 @@ import (
 	externalRef0 "github.com/kubev2v/migration-planner/api/v1alpha1"
 	apiAgent "github.com/kubev2v/migration-planner/api/v1alpha1/agent"
 	agentClient "github.com/kubev2v/migration-planner/pkg/client"
-	"go.uber.org/zap"
 
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	serviceErrs "github.com/kubev2v/assisted-migration-agent/pkg/errors"
@@ -19,6 +18,7 @@ import (
 type Client struct {
 	baseURL    string
 	httpClient *agentClient.Client
+	jwt        string
 }
 
 func NewConsoleClient(baseURL string, jwt string) (*Client, error) {
@@ -26,7 +26,7 @@ func NewConsoleClient(baseURL string, jwt string) (*Client, error) {
 		if jwt == "" {
 			return nil
 		}
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", jwt))
+		req.Header.Add("X-Agent-Token", jwt)
 		return nil
 	}))
 	if err != nil {
@@ -35,6 +35,7 @@ func NewConsoleClient(baseURL string, jwt string) (*Client, error) {
 	return &Client{
 		baseURL:    baseURL,
 		httpClient: httpClient,
+		jwt:        jwt,
 	}, nil
 }
 
@@ -42,14 +43,12 @@ func NewConsoleClient(baseURL string, jwt string) (*Client, error) {
 // PUT /api/v1/agents/{id}/status
 func (c *Client) UpdateAgentStatus(ctx context.Context, agentID uuid.UUID, sourceID uuid.UUID, version string, collectorStatus models.CollectorStatusType) error {
 	body := apiAgent.AgentStatusUpdate{
-		CredentialUrl: "http://10.10.10.1:33443",
+		CredentialUrl: "http://10.10.10.1:3443",
 		Status:        string(collectorStatus),
 		StatusInfo:    string(collectorStatus),
 		SourceId:      sourceID,
 		Version:       version,
 	}
-
-	zap.S().Debugw("update agent status", "body", body)
 
 	resp, err := c.httpClient.UpdateAgentStatus(ctx, agentID, body)
 	if err != nil {
