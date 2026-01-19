@@ -5,7 +5,16 @@ import (
 )
 
 func (a *AgentStatus) FromModel(m models.AgentStatus) {
-	a.ConsoleConnection = AgentStatusConsoleConnection(m.Console.Current)
+	switch m.Console.Current {
+	case models.ConsoleStatusConnected:
+		a.ConsoleConnection = AgentStatusConsoleConnection("connected")
+	case models.ConsoleStatusDisconnected:
+		a.ConsoleConnection = AgentStatusConsoleConnection("disconnected")
+	}
+	if m.Console.Error != nil {
+		err := m.Console.Error.Error()
+		a.Error = &err
+	}
 	a.Mode = AgentStatusMode(m.Console.Target)
 }
 

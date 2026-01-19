@@ -12,9 +12,7 @@ const (
 // Defines values for AgentStatusConsoleConnection.
 const (
 	AgentStatusConsoleConnectionConnected    AgentStatusConsoleConnection = "connected"
-	AgentStatusConsoleConnectionConnecting   AgentStatusConsoleConnection = "connecting"
 	AgentStatusConsoleConnectionDisconnected AgentStatusConsoleConnection = "disconnected"
-	AgentStatusConsoleConnectionError        AgentStatusConsoleConnection = "error"
 )
 
 // Defines values for AgentStatusMode.
@@ -61,6 +59,9 @@ type AgentModeRequestMode string
 type AgentStatus struct {
 	// ConsoleConnection Current console connection status
 	ConsoleConnection AgentStatusConsoleConnection `json:"console_connection"`
+
+	// Error Connection error description
+	Error *string `json:"error,omitempty"`
 
 	// Mode Target mode for the agent
 	Mode AgentStatusMode `json:"mode"`

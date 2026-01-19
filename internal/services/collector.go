@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
+	"github.com/kubev2v/assisted-migration-agent/internal/store"
 	srvErrors "github.com/kubev2v/assisted-migration-agent/pkg/errors"
 	"github.com/kubev2v/assisted-migration-agent/pkg/scheduler"
 )
@@ -22,11 +23,18 @@ type CollectorService struct {
 	cancel context.CancelFunc
 }
 
-func NewCollectorService(s *scheduler.Scheduler, builder models.WorkBuilder) *CollectorService {
+func NewCollectorService(s *scheduler.Scheduler, store *store.Store, builder models.WorkBuilder) *CollectorService {
 	srv := &CollectorService{
 		scheduler: s,
 		builder:   builder,
 		state:     models.CollectorStatus{State: models.CollectorStateReady},
+	}
+
+	// if inventory has been collected, pass the state to collected.
+	// As per design, we allow only one inventory to be collected
+	inv, err := store.Inventory().Get(context.Background())
+	if err == nil && inv != nil {
+		srv.setState(models.CollectorStatus{State: models.CollectorStateCollected})
 	}
 
 	return srv
@@ -47,6 +55,10 @@ func (c *CollectorService) Start(ctx context.Context, creds *models.Credentials)
 
 	if c.isBusy() {
 		return srvErrors.NewCollectionInProgressError()
+	}
+
+	if !c.canCollect() {
+		return nil
 	}
 
 	runCtx, cancel := context.WithCancel(context.Background())
@@ -130,4 +142,8 @@ func (c *CollectorService) isBusy() bool {
 	default:
 		return true
 	}
+}
+
+func (c *CollectorService) canCollect() bool {
+	return c.state.State != models.CollectorStateCollected
 }

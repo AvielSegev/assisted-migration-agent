@@ -13,9 +13,7 @@ type ConsoleStatusType string
 
 const (
 	ConsoleStatusDisconnected ConsoleStatusType = "disconnected"
-	ConsoleStatusConnecting   ConsoleStatusType = "connecting"
 	ConsoleStatusConnected    ConsoleStatusType = "connected"
-	ConsoleStatusError        ConsoleStatusType = "error"
 )
 
 func ParseConsoleStatusType(s string) (ConsoleStatusType, error) {
