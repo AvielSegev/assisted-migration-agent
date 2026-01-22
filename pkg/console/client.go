@@ -58,15 +58,11 @@ func (c *Client) UpdateAgentStatus(ctx context.Context, agentID uuid.UUID, sourc
 		defer resp.Body.Close()
 	}
 
-	switch resp.StatusCode {
-	case http.StatusOK:
+	switch {
+	case resp.StatusCode >= 200 && resp.StatusCode < 300:
 		return nil
-	case http.StatusCreated:
-		return nil
-	case http.StatusGone:
-		return serviceErrs.NewSourceGoneError(sourceID)
-	case http.StatusUnauthorized:
-		return serviceErrs.NewAgentUnauthorized()
+	case resp.StatusCode >= 400 && resp.StatusCode < 500:
+		return serviceErrs.NewConsoleClientError(resp.StatusCode, resp.Status)
 	default:
 		return fmt.Errorf("failed to update agent status: %s", resp.Status)
 	}
@@ -93,11 +89,11 @@ func (c *Client) UpdateSourceStatus(ctx context.Context, sourceID, agentID uuid.
 		defer resp.Body.Close()
 	}
 
-	switch resp.StatusCode {
-	case http.StatusOK, http.StatusCreated, http.StatusNoContent:
+	switch {
+	case resp.StatusCode >= 200 && resp.StatusCode < 300:
 		return nil
-	case http.StatusUnauthorized:
-		return serviceErrs.NewAgentUnauthorized()
+	case resp.StatusCode >= 400 && resp.StatusCode < 500:
+		return serviceErrs.NewConsoleClientError(resp.StatusCode, resp.Status)
 	default:
 		return fmt.Errorf("failed to update source inventory: %s", resp.Status)
 	}

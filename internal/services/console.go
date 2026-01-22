@@ -178,8 +178,7 @@ func (c *Console) isFatalStopped() bool {
 //  3. Wait for next tick or close signal.
 //
 // Fatal errors (stop the loop, no retry):
-//   - SourceGoneError (410): The source was deleted from the console. No point in sending updates.
-//   - AgentUnauthorizedError (401): Invalid or expired JWT. Agent cannot authenticate.
+//   - ConsoleClientError (4xx): Client errors from console cannot be recovered.
 //
 // Transient errors are logged and stored in status.Error, but the loop continues.
 // If inventory hasn't changed, the error state is preserved (not cleared or set).
@@ -224,18 +223,14 @@ func (c *Console) run() {
 					goto backoff
 				}
 				c.setError(result.Err)
-				switch result.Err.(type) {
-				case *errors.SourceGoneError:
-					zap.S().Named("console_service").Error("source is gone..stop sending requests")
+				// If the error from console.rh.com is 4xx stop the service
+				// 4xx errors cannot be recovered and it is useless to keep sending requests
+				if errors.IsConsoleClientError(result.Err) {
+					zap.S().Named("console_service").Errorw("failed to send request to console. console service stopped", "error", result.Err.Error())
 					c.setFatalStopped()
 					return
-				case *errors.AgentUnauthorizedError:
-					zap.S().Named("console_service").Error("agent not authenticated..stop sending requests")
-					c.setFatalStopped()
-					return
-				default:
-					zap.S().Named("console_service").Errorw("failed to dispatch to console", "error", result.Err)
 				}
+				zap.S().Named("console_service").Errorw("failed to dispatch to console", "error", result.Err)
 			} else {
 				c.clearError()
 			}

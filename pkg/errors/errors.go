@@ -4,45 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-
-	"github.com/google/uuid"
 )
-
-// SourceGoneError indicates the source has been deleted or is no longer available.
-type SourceGoneError struct {
-	SourceID uuid.UUID
-}
-
-func NewSourceGoneError(sourceID uuid.UUID) *SourceGoneError {
-	return &SourceGoneError{SourceID: sourceID}
-}
-
-func (e *SourceGoneError) Error() string {
-	return fmt.Sprintf("source gone: %s", e.SourceID)
-}
-
-// IsSourceGoneError checks if the error is a SourceGoneError.
-func IsSourceGoneError(err error) bool {
-	var e *SourceGoneError
-	return errors.As(err, &e)
-}
-
-// AgentUnauthorizedError indicates the agent is not authorized to perform the operation.
-type AgentUnauthorizedError struct{}
-
-func NewAgentUnauthorized() *AgentUnauthorizedError {
-	return &AgentUnauthorizedError{}
-}
-
-func (e *AgentUnauthorizedError) Error() string {
-	return "agent not authorized"
-}
-
-// IsAgentUnauthorizedError checks if the error is an AgentUnauthorizedError.
-func IsAgentUnauthorizedError(err error) bool {
-	var e *AgentUnauthorizedError
-	return errors.As(err, &e)
-}
 
 // ResourceNotFoundError indicates a resource was not found.
 type ResourceNotFoundError struct {
@@ -149,5 +111,24 @@ func (e *VCenterError) Error() string {
 
 func IsVCenterError(err error) bool {
 	var e *VCenterError
+	return errors.As(err, &e)
+}
+
+// ConsoleClientError wraps HTTP 4xx errors from the console client.
+type ConsoleClientError struct {
+	StatusCode int
+	Message    string
+}
+
+func NewConsoleClientError(statusCode int, message string) *ConsoleClientError {
+	return &ConsoleClientError{StatusCode: statusCode, Message: message}
+}
+
+func (e *ConsoleClientError) Error() string {
+	return fmt.Sprintf("console client error %d: %s", e.StatusCode, e.Message)
+}
+
+func IsConsoleClientError(err error) bool {
+	var e *ConsoleClientError
 	return errors.As(err, &e)
 }
