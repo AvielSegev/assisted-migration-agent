@@ -212,7 +212,6 @@ func (c *Console) run() {
 		now := time.Now()
 
 		if !now.After(nextAllowedTime) {
-			zap.S().Debugw("waiting for backoff to expire", "next-allowed-time", nextAllowedTime)
 			continue
 		}
 
@@ -249,6 +248,7 @@ func (c *Console) run() {
 		// if there's an error activate backoff, otherwise reset it
 		if c.Status().Error != nil {
 			nextAllowedTime = now.Add(b.NextBackOff())
+			zap.S().Debugw("set backoff", "next-allowed-time", nextAllowedTime)
 		} else {
 			b.Reset()
 			nextAllowedTime = time.Time{}
@@ -279,17 +279,21 @@ func (c *Console) dispatch() *models.Future[models.Result[any]] {
 		if err != nil {
 			return nil, err
 		}
+
 		if !changed {
-			zap.S().Named("console_service").Debugw("inventory not changed. skip updating inventory...", "hash", c.inventoryLastHash)
 			return nil, errInventoryNotChanged
 		}
+
 		inventory := models.Inventory{}
 		if err := json.Unmarshal(data, &inventory); err != nil {
 			return nil, err
 		}
+
 		if err := c.client.UpdateSourceStatus(ctx, c.sourceID, c.agentID, inventory); err != nil {
 			return nil, err
 		}
+
+		zap.S().Named("console_service").Debugw("inventory updated", "hash", c.inventoryLastHash)
 
 		return struct{}{}, nil
 	})
