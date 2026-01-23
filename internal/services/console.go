@@ -35,8 +35,8 @@ type Console struct {
 	agentID             uuid.UUID
 	sourceID            uuid.UUID
 	version             string
-	state               models.ConsoleStatus
-	mu                  sync.Mutex
+	state               *consoleState
+	mu                  sync.Mutex // protects mode changes to prevent double run()
 	scheduler           *scheduler.Scheduler
 	client              *console.Client
 	close               chan any
@@ -44,7 +44,6 @@ type Console struct {
 	inventoryLastHash   string // holds the hash of the last sent inventory
 	store               *store.Store
 	legacyStatusEnabled bool
-	fatalStopped        bool
 }
 
 func NewConsoleService(cfg config.Agent, s *scheduler.Scheduler, client *console.Client, collector Collector, st *store.Store) *Console {
@@ -75,14 +74,17 @@ func NewConsoleService(cfg config.Agent, s *scheduler.Scheduler, client *console
 
 func newConsoleService(cfg config.Agent, s *scheduler.Scheduler, client *console.Client, collector Collector, store *store.Store, defaultStatus models.ConsoleStatus) *Console {
 	return &Console{
-		updateInterval:      cfg.UpdateInterval,
-		agentID:             uuid.MustParse(cfg.ID),
-		sourceID:            uuid.MustParse(cfg.SourceID),
-		version:             cfg.Version,
-		scheduler:           s,
-		state:               defaultStatus,
+		updateInterval: cfg.UpdateInterval,
+		agentID:        uuid.MustParse(cfg.ID),
+		sourceID:       uuid.MustParse(cfg.SourceID),
+		version:        cfg.Version,
+		scheduler:      s,
+		state: &consoleState{
+			current: defaultStatus.Current,
+			target:  defaultStatus.Target,
+		},
 		client:              client,
-		close:               make(chan any),
+		close:               make(chan any, 1),
 		store:               store,
 		collector:           collector,
 		legacyStatusEnabled: cfg.LegacyStatusEnabled,
@@ -98,17 +100,16 @@ func (c *Console) GetMode(ctx context.Context) (models.AgentMode, error) {
 }
 
 func (c *Console) SetMode(ctx context.Context, mode models.AgentMode) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	prevMode, _ := c.GetMode(ctx)
 
 	if prevMode == mode {
 		return nil
 	}
 
-	if c.isFatalStopped() {
-		// TODO: Should we change the status in db to disconnected in this case to prevent user
-		// from restarting the agent and try to connect to console again?
-		// If we don't save the disconnected state, at each restart,if the mode is connected, the agent
-		// will do another request and exit again.
+	if c.state.IsFatalStopped() {
 		return errors.NewModeConflictError("console reporting stopped after receiving 401/410 from the server")
 	}
 
@@ -119,21 +120,13 @@ func (c *Console) SetMode(ctx context.Context, mode models.AgentMode) error {
 
 	switch mode {
 	case models.AgentModeConnected:
-		c.mu.Lock()
-		c.state.Target = models.ConsoleStatusConnected
-		c.mu.Unlock()
-		if prevMode != models.AgentModeConnected {
-			zap.S().Debugw("starting run loop for connected mode")
-			go c.run()
-		}
+		c.state.SetTarget(models.ConsoleStatusConnected)
+		zap.S().Debugw("starting run loop for connected mode")
+		go c.run()
 	case models.AgentModeDisconnected:
-		c.mu.Lock()
-		c.state.Target = models.ConsoleStatusDisconnected
-		c.mu.Unlock()
-		if prevMode == models.AgentModeConnected {
-			zap.S().Debugw("stopping run loop for disconnected mode")
-			c.close <- struct{}{}
-		}
+		c.state.SetTarget(models.ConsoleStatusDisconnected)
+		zap.S().Debugw("stopping run loop for disconnected mode")
+		c.close <- struct{}{}
 	}
 
 	zap.S().Named("console_service").Infow("agent mode changed", "mode", mode)
@@ -141,33 +134,7 @@ func (c *Console) SetMode(ctx context.Context, mode models.AgentMode) error {
 }
 
 func (c *Console) Status() models.ConsoleStatus {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.state
-}
-
-func (c *Console) setError(err error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.state.Error = err
-}
-
-func (c *Console) clearError() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.state.Error = nil
-}
-
-func (c *Console) setFatalStopped() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.fatalStopped = true
-}
-
-func (c *Console) isFatalStopped() bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.fatalStopped
+	return c.state.Status()
 }
 
 // run is the main loop that sends status and inventory updates to the console.
@@ -189,9 +156,11 @@ func (c *Console) isFatalStopped() bool {
 // The interval grows exponentially from updateInterval up to 60 seconds max. On success,
 // the backoff resets to allow immediate requests on the next tick.
 func (c *Console) run() {
+	c.state.SetCurrent(models.ConsoleStatusConnected)
 	tick := time.NewTicker(c.updateInterval)
 	defer func() {
 		tick.Stop()
+		c.state.SetCurrent(models.ConsoleStatusDisconnected)
 		zap.S().Named("console_service").Info("service stopped sending requests to console.rh.com")
 	}()
 
@@ -222,17 +191,17 @@ func (c *Console) run() {
 				if stderrors.Is(result.Err, errInventoryNotChanged) {
 					goto backoff
 				}
-				c.setError(result.Err)
+				c.state.SetError(result.Err)
 				// If the error from console.rh.com is 4xx stop the service
 				// 4xx errors cannot be recovered and it is useless to keep sending requests
 				if errors.IsConsoleClientError(result.Err) {
 					zap.S().Named("console_service").Errorw("failed to send request to console. console service stopped", "error", result.Err.Error())
-					c.setFatalStopped()
+					c.state.SetFatalStopped()
 					return
 				}
 				zap.S().Named("console_service").Errorw("failed to dispatch to console", "error", result.Err)
 			} else {
-				c.clearError()
+				c.state.ClearError()
 			}
 		case <-c.close:
 			future.Stop()
@@ -241,7 +210,7 @@ func (c *Console) run() {
 
 	backoff:
 		// if there's an error activate backoff, otherwise reset it
-		if c.Status().Error != nil {
+		if c.state.GetError() != nil {
 			nextAllowedTime = now.Add(b.NextBackOff())
 			zap.S().Debugw("set backoff", "next-allowed-time", nextAllowedTime)
 		} else {
@@ -312,4 +281,67 @@ func (c *Console) getInventoryIfChanged(ctx context.Context) ([]byte, bool, erro
 
 	c.inventoryLastHash = hash
 	return data, true, nil
+}
+
+// consoleState holds the console status with its own mutex for thread-safe access.
+// This separation prevents deadlocks between state updates (from run loop) and
+// mode changes (from SetMode).
+type consoleState struct {
+	mu           sync.Mutex
+	current      models.ConsoleStatusType
+	target       models.ConsoleStatusType
+	err          error
+	fatalStopped bool
+}
+
+func (s *consoleState) Status() models.ConsoleStatus {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return models.ConsoleStatus{
+		Current: s.current,
+		Target:  s.target,
+		Error:   s.err,
+	}
+}
+
+func (s *consoleState) SetCurrent(c models.ConsoleStatusType) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.current = c
+}
+
+func (s *consoleState) SetTarget(t models.ConsoleStatusType) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.target = t
+}
+
+func (s *consoleState) SetError(err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.err = err
+}
+
+func (s *consoleState) ClearError() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.err = nil
+}
+
+func (s *consoleState) GetError() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.err
+}
+
+func (s *consoleState) SetFatalStopped() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.fatalStopped = true
+}
+
+func (s *consoleState) IsFatalStopped() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.fatalStopped
 }
