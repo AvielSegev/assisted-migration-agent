@@ -83,6 +83,14 @@
 //	│ DELETE │ /vms/inspector   │ Remove VMs from inspection (not impl.)│
 //	└────────┴──────────────────┴───────────────────────────────────────┘
 //
+// VDDK Endpoints (vddk.go):
+//
+//	┌────────┬──────────────────┬───────────────────────────────────────┐
+//	│ Method │ Endpoint         │ Description                           │
+//	├────────┼──────────────────┼───────────────────────────────────────┤
+//	│ POST   │ /vddk            │ Upload VDDK tarball (max 64MB)        │
+//	└────────┴──────────────────┴───────────────────────────────────────┘
+//
 // # Agent Handler
 //
 // GET /agent - Returns current agent status:
@@ -203,6 +211,26 @@
 // Errors:
 //   - 404 Not Found: VM not found
 //
+// # VDDK Handler
+//
+// POST /vddk - Uploads a VDDK tarball to the agent's data directory.
+//
+// The request body should contain the raw tarball data (application/octet-stream).
+// Maximum file size is 64MB.
+//
+// Response:
+//
+//	{
+//	    "md5": "d41d8cd98f00b204e9800998ecf8427e",  // MD5 checksum of uploaded file
+//	    "bytes": 52428800                           // Number of bytes written
+//	}
+//
+// Errors:
+//   - 413 Request Entity Too Large: File exceeds 64MB limit
+//   - 500 Internal Server Error: Failed to create or save file
+//
+// The uploaded file is saved as "vddk.tar.gz" in the agent's data directory.
+//
 // # Error Handling
 //
 // Handlers use consistent error response format:
@@ -218,6 +246,7 @@
 //	│ ResourceNotFoundError       │ 404    │ Resource doesn't exist       │
 //	│ CollectionInProgressError   │ 409    │ Collection already running   │
 //	│ ModeConflictError           │ 409    │ Mode change after fatal err  │
+//	│ MaxBytesError               │ 413    │ Upload exceeds size limit    │
 //	│ Internal error              │ 500    │ Unexpected service errors    │
 //	│ Not implemented             │ 501    │ Inspector endpoints          │
 //	└─────────────────────────────┴────────┴──────────────────────────────┘
