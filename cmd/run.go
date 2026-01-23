@@ -39,6 +39,7 @@ func NewRunCommand(cfg *config.Configuration) *cobra.Command {
 	runCmd := &cobra.Command{
 		Use:   "run",
 		Short: "Run agent",
+		Args:  cobra.NoArgs,
 		Example: `  # Run agent in disconnected mode
   agent run --agent-id 550e8400-e29b-41d4-a716-446655440000 --source-id 6ba7b810-9dad-11d1-80b4-00c04fd430c8
 
@@ -47,11 +48,10 @@ func NewRunCommand(cfg *config.Configuration) *cobra.Command {
 
   # Run agent in production mode
   agent run --agent-id 550e8400-e29b-41d4-a716-446655440000 --source-id 6ba7b810-9dad-11d1-80b4-00c04fd430c8 --server-mode prod --server-statics-folder /var/www/statics`,
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return validateConfiguration(cfg)
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := validateConfiguration(cfg); err != nil {
-				return err
-			}
-
 			zap.S().Infow("using configuration",
 				"agent", helpers.Flatten(cfg.Agent.DebugMap()),
 				"server", helpers.Flatten(cfg.Server.DebugMap()),
