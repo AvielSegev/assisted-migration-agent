@@ -50,8 +50,10 @@ func NewCollectorStatus(status models.CollectorStatus) CollectorStatus {
 		c.Status = CollectorStatusStatusCollected
 	case models.CollectorStateError:
 		c.Status = CollectorStatusStatusError
+	case models.CollectorStateParsing:
+		c.Status = CollectorStatusStatusParsing
 	default:
-		c.Status = CollectorStatusStatusReady
+		c.Status = "unknown state"
 	}
 
 	if status.Error != nil {
