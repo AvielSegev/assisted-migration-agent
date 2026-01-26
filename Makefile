@@ -1,4 +1,4 @@
-.PHONY: generate generate.proto build run help tidy tidy-check clean lint format check-format check-generate validate-all
+.PHONY: generate generate.proto build run help tidy tidy-check clean lint format check-format check-generate validate-all image
 
 PODMAN ?= podman
 GIT_COMMIT=$(shell git rev-list -1 HEAD --abbrev-commit)
@@ -6,6 +6,9 @@ GIT_COMMIT=$(shell git rev-list -1 HEAD --abbrev-commit)
 BINARY_NAME=agent
 BINARY_PATH=bin/$(BINARY_NAME)
 MAIN_PATH=./main.go
+
+IMAGE_NAME ?= assisted-migration-agent
+IMAGE_TAG ?= latest
 
 GOBASE=$(shell pwd)
 GOBIN=$(GOBASE)/bin
@@ -15,10 +18,11 @@ GO_BUILD_FLAGS := ${GO_BUILD_FLAGS}
 
 help:
 	@echo "Targets:"
-	@echo "    build:           "
-	@echo "    run:             "
-	@echo "	   run.ui:              " 
-	@echo "    clean:           clean up golangci-lint and other tools"
+	@echo "    build:           build the agent binary"
+	@echo "    image:           build container image"
+	@echo "    run:             run the agent"
+	@echo "    run.ui:          start React dev server"
+	@echo "    clean:           clean up binaries and tools"
 	@echo "    generate:        "
 	@echo "    generate.proto:  "
 	@echo "    check-generate:  "
@@ -34,6 +38,12 @@ build:
 	@echo "Building $(BINARY_NAME)..."
 	go build -ldflags="-X main.sha=${GIT_COMMIT}" -o $(BINARY_PATH) $(MAIN_PATH)
 	@echo "Build complete: $(BINARY_PATH)"
+
+# Build container image
+image:
+	@echo "📦 Building container image $(IMAGE_NAME):$(IMAGE_TAG)..."
+	$(PODMAN) build --build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(IMAGE_NAME):$(IMAGE_TAG) -f Containerfile .
+	@echo "✅ Image built: $(IMAGE_NAME):$(IMAGE_TAG)"
 
 clean:
 	@echo "🗑️ Removing $(BINARY_PATH)..."
