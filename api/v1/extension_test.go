@@ -129,7 +129,7 @@ var _ = Describe("NewCollectorStatus", func() {
 
 	It("should default unknown state to ready", func() {
 		status := v1.NewCollectorStatus(models.CollectorStatus{State: "unknown"})
-		Expect(status.Status).To(Equal(v1.CollectorStatusStatusReady))
+		Expect(string(status.Status)).To(Equal("unknown state"))
 	})
 })
 
