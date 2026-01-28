@@ -8,7 +8,7 @@ import (
 // Column name constants for vm_inspection_status table
 const (
 	inspectionColVmID     = `"VM ID"`
-	inspectionColStatus   = "status"
+	inspectionColState    = "status"
 	inspectionColSequence = "sequence"
 )
 
@@ -38,16 +38,24 @@ func (f *InspectionQueryFilter) ByVmIDs(vmIDs ...string) *InspectionQueryFilter 
 	})
 }
 
-func (f *InspectionQueryFilter) ByStatus(statuses ...models.InspectionState) *InspectionQueryFilter {
-	if len(statuses) == 0 {
+func (f *InspectionQueryFilter) ByState(states ...models.InspectionState) *InspectionQueryFilter {
+	if len(states) == 0 {
 		return f
 	}
-	statusStrings := make([]string, len(statuses))
-	for i, s := range statuses {
-		statusStrings[i] = s.Value()
+	stateStrings := make([]string, len(states))
+	for i, s := range states {
+		stateStrings[i] = s.Value()
 	}
 	return f.Add(func(b sq.SelectBuilder) sq.SelectBuilder {
-		return b.Where(sq.Eq{inspectionColStatus: statusStrings})
+		return b.Where(sq.Eq{inspectionColState: stateStrings})
+	})
+}
+
+func (f *InspectionQueryFilter) ByStateNot(state models.InspectionState) *InspectionQueryFilter {
+	return f.Add(func(b sq.SelectBuilder) sq.SelectBuilder {
+		return b.Where(sq.NotEq{
+			inspectionColState: state.Value(),
+		})
 	})
 }
 
@@ -92,16 +100,16 @@ func (f *InspectionUpdateFilter) ByVmIDs(vmIDs ...string) *InspectionUpdateFilte
 	return f
 }
 
-func (f *InspectionUpdateFilter) ByStatus(statuses ...models.InspectionState) *InspectionUpdateFilter {
-	if len(statuses) == 0 {
+func (f *InspectionUpdateFilter) ByState(states ...models.InspectionState) *InspectionUpdateFilter {
+	if len(states) == 0 {
 		return f
 	}
-	statusStrings := make([]string, len(statuses))
-	for i, s := range statuses {
-		statusStrings[i] = s.Value()
+	statesStrings := make([]string, len(states))
+	for i, s := range states {
+		statesStrings[i] = s.Value()
 	}
 	f.filters = append(f.filters, func(b sq.UpdateBuilder) sq.UpdateBuilder {
-		return b.Where(sq.Eq{inspectionColStatus: statusStrings})
+		return b.Where(sq.Eq{inspectionColState: statesStrings})
 	})
 	return f
 }

@@ -126,7 +126,7 @@ func (m *MockInspectorService) CancelVmsInspection(ctx context.Context, vmIDs ..
 	return m.CancelVmsInspectionError
 }
 
-func (m *MockInspectorService) Stop(ctx context.Context) error {
+func (m *MockInspectorService) Stop() error {
 	m.StopCallCount++
 	return m.StopError
 }
