@@ -254,7 +254,7 @@ func (h *Handler) AddVMsToInspection(c *gin.Context) {
 // StopInspection stops inspector entirely
 // (DELETE /vms/inspector)
 func (h *Handler) StopInspection(c *gin.Context) {
-	if err := h.inspectorSrv.Stop(c.Request.Context()); err != nil {
+	if err := h.inspectorSrv.Stop(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

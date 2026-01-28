@@ -130,7 +130,7 @@ var _ = Describe("InspectorService", func() {
 
 	AfterEach(func() {
 		if srv != nil {
-			_ = srv.Stop(ctx)
+			_ = srv.Stop()
 		}
 		if sched != nil {
 			sched.Close()
@@ -171,7 +171,7 @@ var _ = Describe("InspectorService", func() {
 				insertVM("vm-0", "test-vm-0")
 
 				// Use a mock builder with delay to keep inspector running
-				builder := newMockInspectorWorkBuilder().withWorkDelay(1 * time.Second)
+				builder := newMockInspectorWorkBuilder().withWorkDelay(2 * time.Second)
 				srv = services.NewInspectorService(sched, st).WithBuilder(builder)
 
 				// Start inspector with vm-0 (will stay running due to delay)
@@ -338,11 +338,18 @@ var _ = Describe("InspectorService", func() {
 			})
 
 			It("should cancel all pending VMs when no specific IDs provided", func() {
-				err := srv.CancelVmsInspection(ctx)
-				Expect(err).NotTo(HaveOccurred())
+				// wait for vm-0 to be on running state
+				Eventually(func() models.InspectionState {
+					status, _ := srv.GetVmStatus(ctx, "vm-0")
+					return status.State
+				}).Should(Equal(models.InspectionStateRunning))
 
-				// vm-1, vm-2, vm-3 should be canceled (vm-0 is running, not pending)
-				statuses, err := st.Inspection().List(ctx, filters.NewInspectionQueryFilter().ByStatus(models.InspectionStateCanceled))
+				err := srv.CancelVmsInspection(ctx)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("vm-0"))
+
+				// vm-1, vm-2, vm-3 should all be canceled
+				statuses, err := st.Inspection().List(ctx, filters.NewInspectionQueryFilter().ByState(models.InspectionStateCanceled))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(statuses).To(HaveLen(3))
 			})
@@ -354,8 +361,8 @@ var _ = Describe("InspectorService", func() {
 					models.InspectionStatus{State: models.InspectionStateCompleted})
 				Expect(err).NotTo(HaveOccurred())
 
-				// Cancel all pending
-				err = srv.CancelVmsInspection(ctx)
+				// Cancel specific pending VMs (vm-2, vm-3)
+				err = srv.CancelVmsInspection(ctx, "vm-2", "vm-3")
 				Expect(err).NotTo(HaveOccurred())
 
 				// vm-1 should still be completed (not canceled)
@@ -367,6 +374,10 @@ var _ = Describe("InspectorService", func() {
 				status2, err := st.Inspection().Get(ctx, "vm-2")
 				Expect(err).NotTo(HaveOccurred())
 				Expect(status2.State).To(Equal(models.InspectionStateCanceled))
+
+				status3, err := st.Inspection().Get(ctx, "vm-3")
+				Expect(err).NotTo(HaveOccurred())
+				Expect(status3.State).To(Equal(models.InspectionStateCanceled))
 			})
 		})
 	})
@@ -542,7 +553,7 @@ var _ = Describe("InspectorService", func() {
 			}).Should(Equal(models.InspectorStateRunning))
 
 			// Cancel inspector
-			err = srv.Stop(ctx)
+			err = srv.Stop()
 			Expect(err).NotTo(HaveOccurred())
 
 			// Inspector should be in canceled state
@@ -669,7 +680,7 @@ var _ = Describe("InspectionStore", func() {
 
 		It("should filter by status", func() {
 			statuses, err := st.Inspection().List(ctx,
-				filters.NewInspectionQueryFilter().ByStatus(models.InspectionStatePending))
+				filters.NewInspectionQueryFilter().ByState(models.InspectionStatePending))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(statuses).To(HaveLen(2))
 			Expect(statuses).To(HaveKey("vm-1"))
@@ -763,7 +774,7 @@ var _ = Describe("InspectionStore", func() {
 
 		It("should update multiple VMs by status", func() {
 			err := st.Inspection().Update(ctx,
-				filters.NewInspectionUpdateFilter().ByStatus(models.InspectionStatePending),
+				filters.NewInspectionUpdateFilter().ByState(models.InspectionStatePending),
 				models.InspectionStatus{State: models.InspectionStateCanceled})
 			Expect(err).NotTo(HaveOccurred())
 

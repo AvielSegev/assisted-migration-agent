@@ -38,7 +38,7 @@ type InspectorService interface {
 	GetStatus() models.InspectorStatus
 	GetVmStatus(ctx context.Context, id string) (models.InspectionStatus, error)
 	CancelVmsInspection(ctx context.Context, vmIDs ...string) error
-	Stop(ctx context.Context) error
+	Stop() error
 }
 
 type Handler struct {

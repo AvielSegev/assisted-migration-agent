@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -126,23 +127,17 @@ func (c *InspectorService) Add(ctx context.Context, vmIDs []string) error {
 	return nil
 }
 
-func (c *InspectorService) Stop(ctx context.Context) error {
+func (c *InspectorService) Stop() error {
 	if !c.IsBusy() {
 		return srvErrors.NewInspectorNotRunningError()
-	}
-
-	c.setState(models.InspectorStateCanceling)
-
-	// Cancel pending VMs before waiting for the goroutine to finish
-	// This ensures VMs are marked as canceled even if the goroutine finishes quickly
-	if err := c.CancelVmsInspection(ctx); err != nil {
-		return fmt.Errorf("failed to update inspection table: %w", err)
 	}
 
 	c.mu.Lock()
 	cancel := c.cancel
 	done := c.done
 	c.mu.Unlock()
+
+	c.setState(models.InspectorStateCanceling)
 
 	if cancel != nil {
 		cancel()
@@ -163,7 +158,7 @@ func (c *InspectorService) CancelVmsInspection(ctx context.Context, vmIDs ...str
 		return srvErrors.NewInspectorNotRunningError()
 	}
 
-	filter := filters.NewInspectionUpdateFilter().ByStatus(models.InspectionStatePending)
+	filter := filters.NewInspectionUpdateFilter().ByState(models.InspectionStatePending)
 
 	if len(vmIDs) > 0 {
 		filter = filter.ByVmIDs(vmIDs...)
@@ -174,6 +169,28 @@ func (c *InspectorService) CancelVmsInspection(ctx context.Context, vmIDs ...str
 	})
 	if err != nil {
 		return fmt.Errorf("failed to update inspection table: %w", err)
+	}
+
+	vFilter := filters.NewInspectionQueryFilter().ByStateNot(models.InspectionStateCanceled)
+	if len(vmIDs) > 0 {
+		vFilter = vFilter.ByVmIDs(vmIDs...)
+	}
+
+	vms, err := c.store.Inspection().List(ctx, vFilter)
+	if err != nil {
+		return fmt.Errorf("failed to list vms in inspection table: %w", err)
+	}
+
+	if len(vms) > 0 {
+		var b strings.Builder
+		for vmID, s := range vms {
+			_, _ = fmt.Fprintf(&b, "vm=%s state=%s; ", vmID, s.State)
+		}
+
+		return fmt.Errorf(
+			"some VMs are not in a cancelable state: (%s)",
+			strings.TrimSuffix(b.String(), "; "),
+		)
 	}
 
 	return nil
