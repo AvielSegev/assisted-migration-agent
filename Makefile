@@ -1,4 +1,4 @@
-.PHONY: generate generate.proto build run help tidy tidy-check clean lint format check-format check-generate validate-all image
+.PHONY: generate generate.proto build build.e2e run help tidy tidy-check clean lint format check-format check-generate validate-all image
 
 PODMAN ?= podman
 GIT_COMMIT=$(shell git rev-list -1 HEAD --abbrev-commit)
@@ -38,6 +38,11 @@ build:
 	@echo "Building $(BINARY_NAME)..."
 	go build -ldflags="-X main.sha=${GIT_COMMIT}" -o $(BINARY_PATH) $(MAIN_PATH)
 	@echo "Build complete: $(BINARY_PATH)"
+
+build.e2e:
+	@echo "Building e2e binary..."
+	go build -tags "exclude_graphdriver_btrfs containers_image_openpgp" -o bin/e2e ./test/e2e
+	@echo "Build complete: bin/e2e"
 
 # Build container image
 image:

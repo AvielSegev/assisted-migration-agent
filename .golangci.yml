@@ -1,0 +1,6 @@
+run:
+  skip-dirs:
+    - test/e2e
+  build-tags:
+    - exclude_graphdriver_btrfs
+    - containers_image_openpgp
