@@ -1,7 +1,8 @@
-package v1
+package collector
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -12,21 +13,21 @@ import (
 
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	"github.com/kubev2v/assisted-migration-agent/internal/store"
-	"github.com/kubev2v/assisted-migration-agent/pkg/collector"
+	"github.com/kubev2v/migration-planner/pkg/inventory/converters"
 )
 
-// V1WorkBuilder builds a sequence of WorkUnits for the v1 collector workflow.
-type V1WorkBuilder struct {
-	collector      *collector.VSphereCollector
+// WorkBuilder builds a sequence of WorkUnits for the v1 collector workflow.
+type WorkBuilder struct {
+	collector      *VSphereCollector
 	store          *store.Store
 	opaPoliciesDir string
 	dataDir        string
 	creds          *models.Credentials
 }
 
-// NewV1WorkBuilder creates a new v1 work builder.
-func NewV1WorkBuilder(s *store.Store, dataDir, opaPoliciesDir string) *V1WorkBuilder {
-	return &V1WorkBuilder{
+// NewWorkBuilder creates a new v1 work builder.
+func NewWorkBuilder(s *store.Store, dataDir, opaPoliciesDir string) *WorkBuilder {
+	return &WorkBuilder{
 		store:          s,
 		opaPoliciesDir: opaPoliciesDir,
 		dataDir:        dataDir,
@@ -34,20 +35,20 @@ func NewV1WorkBuilder(s *store.Store, dataDir, opaPoliciesDir string) *V1WorkBui
 }
 
 // WithCredentials sets the credentials for the workflow.
-func (b *V1WorkBuilder) WithCredentials(creds *models.Credentials) models.WorkBuilder {
+func (b *WorkBuilder) WithCredentials(creds *models.Credentials) models.WorkBuilder {
 	b.creds = creds
 	return b
 }
 
 // Build creates the sequence of WorkUnits for the collector workflow.
 // The first unit is always the ready state.
-func (b *V1WorkBuilder) Build() []models.WorkUnit {
+func (b *WorkBuilder) Build() []models.WorkUnit {
 	// create a new collector with a random sqlite db.
 	// The db name needs to be unique per run because it cannot be reused.
 	// It panics when the user stop and collect again but, because the collection step cannot be
 	// stoped, it can happen that db can be full when the process stops.
 
-	b.collector = collector.NewVSphereCollector(path.Join(b.dataDir, fmt.Sprintf("%s.db", uuid.New())))
+	b.collector = NewVSphereCollector(path.Join(b.dataDir, fmt.Sprintf("%s.db", uuid.New())))
 	return []models.WorkUnit{
 		b.connecting(),
 		b.collecting(),
@@ -56,7 +57,7 @@ func (b *V1WorkBuilder) Build() []models.WorkUnit {
 	}
 }
 
-func (b *V1WorkBuilder) connecting() models.WorkUnit {
+func (b *WorkBuilder) connecting() models.WorkUnit {
 	return models.WorkUnit{
 		Status: func() models.CollectorStatus {
 			return models.CollectorStatus{State: models.CollectorStateConnecting}
@@ -75,7 +76,7 @@ func (b *V1WorkBuilder) connecting() models.WorkUnit {
 	}
 }
 
-func (b *V1WorkBuilder) collecting() models.WorkUnit {
+func (b *WorkBuilder) collecting() models.WorkUnit {
 	return models.WorkUnit{
 		Status: func() models.CollectorStatus {
 			return models.CollectorStatus{State: models.CollectorStateCollecting}
@@ -91,21 +92,13 @@ func (b *V1WorkBuilder) collecting() models.WorkUnit {
 				}
 				zap.S().Named("collector_service").Info("vSphere inventory collection completed")
 
-				zap.S().Named("collector_service").Info("building inventory from collected data")
-				processor := NewBuilder(b.store, b.opaPoliciesDir)
-				if err := processor.Process(ctx, b.collector); err != nil {
-					zap.S().Named("collector_service").Errorw("failed to build inventory", "error", err)
-					return nil, err
-				}
-				zap.S().Named("collector_service").Info("inventory successfully processed")
-
 				return nil, nil
 			}
 		},
 	}
 }
 
-func (b *V1WorkBuilder) parsing() models.WorkUnit {
+func (b *WorkBuilder) parsing() models.WorkUnit {
 	return models.WorkUnit{
 		Status: func() models.CollectorStatus {
 			return models.CollectorStatus{State: models.CollectorStateParsing}
@@ -152,13 +145,30 @@ func (b *V1WorkBuilder) parsing() models.WorkUnit {
 					zap.S().Named("collector_service").Warnw("failed to remove sqlite file", "path", sqlitePath, "error", err)
 				}
 
+				inv, err := b.store.Parser().BuildInventory(ctx)
+				if err != nil {
+					return nil, fmt.Errorf("error building inventory: %v", err)
+				}
+
+				// Store the inventory
+				inventory, err := json.Marshal(converters.ToAPI(inv))
+				if err != nil {
+					return nil, fmt.Errorf("failed to marshal the inventory: %v", err)
+				}
+
+				if err := b.store.Inventory().Save(ctx, inventory); err != nil {
+					return nil, err
+				}
+
+				zap.S().Named("inventory").Info("Successfully created inventory with clusters")
+
 				return nil, nil
 			}
 		},
 	}
 }
 
-func (b *V1WorkBuilder) collected() models.WorkUnit {
+func (b *WorkBuilder) collected() models.WorkUnit {
 	return models.WorkUnit{
 		Status: func() models.CollectorStatus {
 			return models.CollectorStatus{State: models.CollectorStateCollected}

@@ -243,7 +243,7 @@ func (c *Console) dispatch() *models.Future[models.Result[any]] {
 			switch c.collector.GetStatus().State {
 			case models.CollectorStateReady:
 				collectorStatus = models.CollectorLegacyStatusWaitingForCredentials
-			case models.CollectorStateConnecting, models.CollectorStateCollecting:
+			case models.CollectorStateConnecting, models.CollectorStateCollecting, models.CollectorStateParsing:
 				collectorStatus = models.CollectorLegacyStatusCollecting
 			case models.CollectorStateCollected:
 				collectorStatus = models.CollectorLegacyStatusCollected

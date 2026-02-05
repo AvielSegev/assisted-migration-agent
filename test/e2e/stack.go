@@ -56,7 +56,8 @@ func (s *Stack) StartBackend() error {
 		WithEnvVar("DB_PASS", dbPassword).
 		WithEnvVar("MIGRATION_PLANNER_MIGRATIONS_FOLDER", "/app/migrations").
 		WithEnvVar("MIGRATION_PLANNER_AUTH", "none").
-		WithEnvVar("MIGRATION_PLANNER_AGENT_AUTH_ENABLED", "false")
+		WithEnvVar("MIGRATION_PLANNER_AGENT_AUTH_ENABLED", "false").
+		WithEnvVar("MIGRATION_PLANNER_LOG_LEVEL", "debug")
 
 	if s.cfg.IsoPath != "" {
 		cfg = cfg.WithBindMount(s.cfg.IsoPath, "/iso").

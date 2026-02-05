@@ -49,6 +49,7 @@ build.e2e:
 
 E2E_AGENT_IMAGE ?= $(IMAGE_NAME):$(IMAGE_TAG)
 E2E_BACKEND_IMAGE ?= quay.io/kubev2v/migration-planner-api:latest
+E2E_ISO_PATH ?= $(CURDIR)
 
 e2e: build.e2e
 	@echo "🧪 Running e2e tests..."
