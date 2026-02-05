@@ -13,9 +13,7 @@ import (
 )
 
 var _ = Describe("Agent e2e tests", Ordered, func() {
-	var (
-		stack *Stack
-	)
+	var stack *Stack
 
 	BeforeAll(func() {
 		var err error
@@ -49,7 +47,11 @@ var _ = Describe("Agent e2e tests", Ordered, func() {
 				Addr:    ":8080",
 				Handler: proxy.Handler(),
 			}
-			go proxyServer.ListenAndServe()
+			go func() {
+				if err := proxyServer.ListenAndServe(); err != nil {
+					GinkgoWriter.Printf("failed to start proxy: %v", err)
+				}
+			}()
 			time.Sleep(100 * time.Millisecond)
 			GinkgoWriter.Println("Proxy started on :8080")
 		})
@@ -569,7 +571,12 @@ var _ = Describe("Agent e2e tests", Ordered, func() {
 	})
 
 	Context("connected env", func() {
-		var backendActioner *BackendActioner
+		var (
+			backendActioner *BackendActioner
+			proxy           *Proxy
+			proxyServer     *http.Server
+			obs             *Observer
+		)
 
 		BeforeAll(func() {
 			GinkgoWriter.Println("Starting backend...")
@@ -581,9 +588,41 @@ var _ = Describe("Agent e2e tests", Ordered, func() {
 			Expect(err).ToNot(HaveOccurred(), "backend not ready")
 
 			backendActioner = NewBackendActioner(cfg.BackendUserEndpoint)
+
+			// Start proxy between agent and backend for logging
+			target, err := url.Parse(cfg.BackendAgentEndpoint)
+			Expect(err).ToNot(HaveOccurred(), "failed to parse backend endpoint")
+
+			var requests chan Request
+			proxy, requests = NewProxy(target)
+			obs = NewObserver(requests)
+			proxyServer = &http.Server{
+				Addr:    ":8081",
+				Handler: proxy.Handler(),
+			}
+			go func() {
+				if err := proxyServer.ListenAndServe(); err != nil {
+					GinkgoWriter.Printf("failed to start proxy: %v", err)
+				}
+			}()
+
+			time.Sleep(100 * time.Millisecond)
+			GinkgoWriter.Println("Proxy started on :8081")
 		})
 
 		AfterAll(func() {
+			// Shutdown proxy and observer
+			if proxyServer != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				defer cancel()
+				_ = proxyServer.Shutdown(ctx)
+			}
+			if proxy != nil {
+				proxy.Close()
+			}
+			if obs != nil {
+				obs.Close()
+			}
 			_ = stack.StopBackend()
 		})
 
@@ -784,7 +823,7 @@ var _ = Describe("Agent e2e tests", Ordered, func() {
 						WithEnvVar("AGENT_AGENT_ID", agentID).
 						WithEnvVar("AGENT_SOURCE_ID", sourceID).
 						WithEnvVar("AGENT_DATA_FOLDER", "/var/lib/agent").
-						WithEnvVar("AGENT_CONSOLE_URL", cfg.BackendAgentEndpoint).
+						WithEnvVar("AGENT_CONSOLE_URL", "http://localhost:8081").
 						WithEnvVar("AGENT_CONSOLE_UPDATE_INTERVAL", "1s"),
 				)
 				Expect(err).ToNot(HaveOccurred(), "failed to start agent")
