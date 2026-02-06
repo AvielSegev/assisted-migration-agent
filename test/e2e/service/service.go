@@ -3,9 +3,10 @@ package service
 import (
 	"fmt"
 
+	"go.uber.org/zap"
+
 	. "github.com/kubev2v/assisted-migration-agent/test/e2e/model"
 	. "github.com/kubev2v/assisted-migration-agent/test/e2e/utils"
-	"go.uber.org/zap"
 )
 
 const (

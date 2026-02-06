@@ -4,13 +4,26 @@ import (
 	"context"
 	"fmt"
 	"sync"
-
-	"github.com/kubev2v/assisted-migration-agent/internal/models"
 )
 
+type queue[T any] []T
+
+func (wq *queue[T]) Len() int { return len(*wq) }
+
+func (wq *queue[T]) Pop() T {
+	old := *wq
+	x := old[0]
+	*wq = old[1:]
+	return x
+}
+
+func (wq *queue[T]) Push(t T) {
+	*wq = append(*wq, t)
+}
+
 type workRequest struct {
-	fn  models.Work[any]
-	c   chan models.Result[any]
+	fn  Work[any]
+	c   chan Result[any]
 	ctx context.Context
 }
 
@@ -22,14 +35,14 @@ type worker struct {
 func (w worker) Work(r workRequest) {
 	defer func() {
 		if rec := recover(); rec != nil {
-			r.c <- models.Result[any]{Err: fmt.Errorf("worker panicked: %v", rec)}
+			r.c <- Result[any]{Err: fmt.Errorf("worker panicked: %v", rec)}
 		}
 		w.done <- struct{}{}
 		w.wg.Done()
 	}()
 
 	v, err := r.fn(r.ctx)
-	r.c <- models.Result[any]{Data: v, Err: err}
+	r.c <- Result[any]{Data: v, Err: err}
 }
 
 func newWorker(done chan any, wg *sync.WaitGroup) worker {
@@ -37,8 +50,8 @@ func newWorker(done chan any, wg *sync.WaitGroup) worker {
 }
 
 type Scheduler struct {
-	workers    *models.Queue[worker]
-	workQueue  *models.Queue[workRequest]
+	workers    *queue[worker]
+	workQueue  *queue[workRequest]
 	close      chan any
 	done       chan any
 	work       chan workRequest
@@ -52,8 +65,8 @@ func NewScheduler(nbWorkers int) *Scheduler {
 	done := make(chan any, nbWorkers)
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Scheduler{
-		workers:    &models.Queue[worker]{},
-		workQueue:  &models.Queue[workRequest]{},
+		workers:    &queue[worker]{},
+		workQueue:  &queue[workRequest]{},
 		close:      make(chan any),
 		done:       done,
 		work:       make(chan workRequest),
@@ -67,18 +80,18 @@ func NewScheduler(nbWorkers int) *Scheduler {
 	return s
 }
 
-func (s *Scheduler) AddWork(w models.Work[any]) *models.Future[models.Result[any]] {
-	c := make(chan models.Result[any], 1)
+func (s *Scheduler) AddWork(w Work[any]) *Future[Result[any]] {
+	c := make(chan Result[any], 1)
 	ctx, cancel := context.WithCancel(s.mainCtx)
 
 	select {
 	case <-s.mainCtx.Done():
 		// we're closing here so send a result with an error
-		c <- models.Result[any]{Err: context.Canceled}
+		c <- Result[any]{Err: context.Canceled}
 	case s.work <- workRequest{w, c, ctx}:
 	}
 
-	return models.NewFuture(c, cancel)
+	return NewFuture(c, cancel)
 }
 
 func (s *Scheduler) Close() {

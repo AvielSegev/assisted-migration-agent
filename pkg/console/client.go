@@ -30,7 +30,7 @@ func NewConsoleClient(baseURL string, jwt string) (*Client, error) {
 		return nil
 	}))
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize console client: %v", err)
+		return nil, fmt.Errorf("failed to initialize console client: %w", err)
 	}
 	return &Client{
 		baseURL:    baseURL,

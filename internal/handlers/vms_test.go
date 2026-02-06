@@ -18,6 +18,7 @@ import (
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	"github.com/kubev2v/assisted-migration-agent/internal/services"
 	"github.com/kubev2v/assisted-migration-agent/internal/store"
+	srvErrors "github.com/kubev2v/assisted-migration-agent/pkg/errors"
 	"github.com/kubev2v/assisted-migration-agent/test"
 )
 
@@ -329,7 +330,7 @@ var _ = Describe("VMs Handlers", func() {
 		// Then it should return 404 Not Found
 		It("should return 404 when VM not found", func() {
 			// Arrange
-			mockVM.GetError = errors.New("not found")
+			mockVM.GetError = srvErrors.NewResourceNotFoundError("vm", "vm-nonexistent")
 
 			req := httptest.NewRequest(http.MethodGet, "/vms/vm-nonexistent", nil)
 			w := httptest.NewRecorder()
@@ -343,7 +344,7 @@ var _ = Describe("VMs Handlers", func() {
 			var response map[string]any
 			err := json.Unmarshal(w.Body.Bytes(), &response)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(response["error"]).To(ContainSubstring("VM not found"))
+			Expect(response["error"]).To(ContainSubstring("not found"))
 		})
 	})
 
@@ -518,7 +519,7 @@ var _ = Describe("VMs Handlers", func() {
 		// Then it should return 404 Not Found
 		It("GetVMInspectionStatus should return 404 for non-existent VM", func() {
 			// Arrange
-			mockInspector.GetVmStatusError = sql.ErrNoRows
+			mockInspector.GetVmStatusError = srvErrors.NewResourceNotFoundError("vm inspection status", "123")
 
 			req := httptest.NewRequest(http.MethodGet, "/vms/123/inspector", nil)
 			w := httptest.NewRecorder()
@@ -909,7 +910,7 @@ var _ = Describe("VMs Handlers Integration", func() {
 
 			var response map[string]any
 			Expect(json.Unmarshal(w.Body.Bytes(), &response)).To(Succeed())
-			Expect(response["error"]).To(ContainSubstring("VM not found"))
+			Expect(response["error"]).To(ContainSubstring("not found"))
 		})
 
 		It("should return VM with disk details", func() {

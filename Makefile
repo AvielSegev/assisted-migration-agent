@@ -137,7 +137,7 @@ $(GOIMPORTS):
 format: $(GOIMPORTS)
 	@echo "🧹 Formatting Go code..."
 	@gofmt -s -w .
-	@$(GOIMPORTS) -w .
+	@$(GOIMPORTS) -local github.com/kubev2v/assisted-migration-agent -w .
 	@echo "✅ Format complete."
 
 # Check that formatting does not introduce changes

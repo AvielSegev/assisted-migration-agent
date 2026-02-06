@@ -229,7 +229,7 @@ var _ = Describe("InspectorService", func() {
 		It("should return error for non-existent VM", func() {
 			_, err := srv.GetVmStatus(ctx, "non-existent")
 			Expect(err).To(HaveOccurred())
-			Expect(errors.Is(err, sql.ErrNoRows)).To(BeTrue())
+			Expect(srvErrors.IsResourceNotFoundError(err)).To(BeTrue())
 		})
 
 		It("should return VM inspection status after adding", func() {
@@ -645,7 +645,7 @@ var _ = Describe("InspectionStore", func() {
 		It("should return error for non-existent VM", func() {
 			_, err := st.Inspection().Get(ctx, "non-existent")
 			Expect(err).To(HaveOccurred())
-			Expect(errors.Is(err, sql.ErrNoRows)).To(BeTrue())
+			Expect(srvErrors.IsResourceNotFoundError(err)).To(BeTrue())
 		})
 	})
 

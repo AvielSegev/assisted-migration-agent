@@ -7,8 +7,10 @@ import (
 	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
+
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	"github.com/kubev2v/assisted-migration-agent/internal/store/filters"
+	srvErrors "github.com/kubev2v/assisted-migration-agent/pkg/errors"
 )
 
 // Column name constants for vm_inspection_status table
@@ -43,7 +45,7 @@ func (s *InspectionStore) Get(ctx context.Context, vmID string) (*models.Inspect
 	var errStr sql.NullString
 	err = row.Scan(&id, &status, &errStr)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, sql.ErrNoRows
+		return nil, srvErrors.NewResourceNotFoundError("vm inspection status", vmID)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("scanning inspection for vm %s: %w", vmID, err)

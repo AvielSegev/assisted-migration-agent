@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	sq "github.com/Masterminds/squirrel"
+
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	srvErrors "github.com/kubev2v/assisted-migration-agent/pkg/errors"
 )

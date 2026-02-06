@@ -1,19 +1,17 @@
 package handlers
 
 import (
-	"database/sql"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
-
-	"github.com/kubev2v/assisted-migration-agent/internal/models"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
 	v1 "github.com/kubev2v/assisted-migration-agent/api/v1"
+	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	"github.com/kubev2v/assisted-migration-agent/internal/services"
+	srvErrors "github.com/kubev2v/assisted-migration-agent/pkg/errors"
 )
 
 var validSortFields = map[string]bool{
@@ -139,8 +137,12 @@ func (h *Handler) GetVMs(c *gin.Context, params v1.GetVMsParams) {
 func (h *Handler) GetVM(c *gin.Context, id string) {
 	vm, err := h.vmSrv.Get(c.Request.Context(), id)
 	if err != nil {
+		if srvErrors.IsResourceNotFoundError(err) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 		zap.S().Named("vm_handler").Errorw("failed to get VM", "id", id, "error", err)
-		c.JSON(http.StatusNotFound, gin.H{"error": "VM not found"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get VM"})
 		return
 	}
 
@@ -152,14 +154,12 @@ func (h *Handler) GetVM(c *gin.Context, id string) {
 func (h *Handler) GetVMInspectionStatus(c *gin.Context, id string) {
 	s, err := h.inspectorSrv.GetVmStatus(c.Request.Context(), id)
 	if err != nil {
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		if srvErrors.IsResourceNotFoundError(err) {
 			c.JSON(http.StatusNotFound, v1.VmInspectionStatus{State: v1.VmInspectionStatusStateNotFound})
 			return
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to get VM status: %v", err)})
-			return
 		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to get VM status: %v", err)})
+		return
 	}
 
 	c.JSON(http.StatusOK, v1.NewInspectionStatus(s))
@@ -175,14 +175,12 @@ func (h *Handler) RemoveVMFromInspection(c *gin.Context, id string) {
 
 	s, err := h.inspectorSrv.GetVmStatus(c.Request.Context(), id)
 	if err != nil {
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		if srvErrors.IsResourceNotFoundError(err) {
 			c.JSON(http.StatusNotFound, v1.VmInspectionStatus{State: v1.VmInspectionStatusStateNotFound})
 			return
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to get VM status: %v", err)})
-			return
 		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to get VM status: %v", err)})
+		return
 	}
 
 	c.JSON(http.StatusOK, v1.NewInspectionStatus(s))

@@ -236,7 +236,7 @@ func (c *Console) Stop() {
 	}
 }
 
-func (c *Console) dispatch() *models.Future[models.Result[any]] {
+func (c *Console) dispatch() *scheduler.Future[scheduler.Result[any]] {
 	return c.scheduler.AddWork(func(ctx context.Context) (any, error) {
 		collectorStatus := models.CollectorStatusType(c.collector.GetStatus().State)
 		if c.legacyStatusEnabled {
@@ -287,7 +287,7 @@ func (c *Console) getInventoryIfChanged(ctx context.Context) ([]byte, bool, erro
 
 	data, err := json.Marshal(inventory)
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to marshal inventory %v", err)
+		return nil, false, fmt.Errorf("failed to marshal inventory: %w", err)
 	}
 
 	hash := fmt.Sprintf("%x", sha256.Sum256(data))

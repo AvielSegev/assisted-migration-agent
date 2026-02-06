@@ -10,9 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	. "github.com/kubev2v/migration-planner/test/e2e"
+
 	. "github.com/kubev2v/assisted-migration-agent/test/e2e/model"
 	. "github.com/kubev2v/assisted-migration-agent/test/e2e/utils"
-	. "github.com/kubev2v/migration-planner/test/e2e"
 
 	"go.uber.org/zap"
 )

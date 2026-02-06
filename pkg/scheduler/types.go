@@ -1,8 +1,15 @@
-package models
+package scheduler
 
 import (
 	"context"
 )
+
+type Work[T any] func(ctx context.Context) (T, error)
+
+type Result[T any] struct {
+	Data T
+	Err  error
+}
 
 type Future[T any] struct {
 	input  chan T

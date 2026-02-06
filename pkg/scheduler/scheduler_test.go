@@ -8,7 +8,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	"github.com/kubev2v/assisted-migration-agent/pkg/scheduler"
 )
 
@@ -37,7 +36,7 @@ var _ = Describe("Scheduler", func() {
 
 			// Assert
 			Expect(future).NotTo(BeNil())
-			var result models.Result[any]
+			var result scheduler.Result[any]
 			Eventually(future.C(), 2*time.Second).Should(Receive(&result))
 			Expect(result.Data).To(Equal("done"))
 		})
@@ -167,7 +166,7 @@ var _ = Describe("Scheduler", func() {
 			})
 
 			// Assert
-			var result models.Result[any]
+			var result scheduler.Result[any]
 			Eventually(future.C(), 1*time.Second).Should(Receive(&result))
 			Expect(result.Err).To(MatchError(context.Canceled))
 		})

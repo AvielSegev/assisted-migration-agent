@@ -2,13 +2,14 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 
 	sq "github.com/Masterminds/squirrel"
-	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	"github.com/kubev2v/migration-planner/pkg/duckdb_parser"
 	parsermodels "github.com/kubev2v/migration-planner/pkg/duckdb_parser/models"
+
+	"github.com/kubev2v/assisted-migration-agent/internal/models"
+	srvErrors "github.com/kubev2v/assisted-migration-agent/pkg/errors"
 )
 
 type VMStore struct {
@@ -101,19 +102,18 @@ func (s *VMStore) Count(ctx context.Context, opts ...ListOption) (int, error) {
 
 // Get returns full VM details by ID using the parser.
 func (s *VMStore) Get(ctx context.Context, id string) (*models.VM, error) {
-	vms, err := s.parser.VMs(ctx, duckdb_parser.Filters{}, duckdb_parser.Options{})
+	vms, err := s.parser.VMs(ctx, duckdb_parser.Filters{VmId: id}, duckdb_parser.Options{})
 	if err != nil {
 		return nil, err
 	}
 
-	for _, vm := range vms {
-		if vm.ID == id {
-			result := vmFromParser(vm)
-			return &result, nil
-		}
+	if len(vms) == 0 {
+		return nil, srvErrors.NewResourceNotFoundError("vm", id)
 	}
 
-	return nil, sql.ErrNoRows
+	result := vmFromParser(vms[0])
+
+	return &result, nil
 }
 
 func vmFromParser(pvm parsermodels.VM) models.VM {
@@ -255,7 +255,7 @@ func WithDefaultSort() ListOption {
 
 // WithSort applies multi-field sorting.
 func WithSort(sorts []SortParam) ListOption {
-	var apiFieldToDBColumn = map[string]string{
+	apiFieldToDBColumn := map[string]string{
 		"name":         `v."VM"`,
 		"vCenterState": `v."Powerstate"`,
 		"cluster":      `v."Cluster"`,

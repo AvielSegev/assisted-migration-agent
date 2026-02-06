@@ -23,6 +23,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/go-extras/cobraflags"
+
 	v1 "github.com/kubev2v/assisted-migration-agent/api/v1"
 	"github.com/kubev2v/assisted-migration-agent/internal/config"
 	"github.com/kubev2v/assisted-migration-agent/internal/handlers"
@@ -90,7 +91,7 @@ func NewRunCommand(cfg *config.Configuration) *cobra.Command {
 			if cfg.Auth.Enabled {
 				data, err := os.ReadFile(cfg.Auth.JWTFilePath)
 				if err != nil {
-					return fmt.Errorf("failed to read agent's jwt: %v", err)
+					return fmt.Errorf("failed to read agent's jwt: %w", err)
 				}
 				if len(data) == 0 {
 					return errors.New("failed to read agent's jwt. the JWT is empty")
@@ -101,7 +102,7 @@ func NewRunCommand(cfg *config.Configuration) *cobra.Command {
 			// init console client
 			consoleClient, err := console.NewConsoleClient(cfg.Console.URL, jwt)
 			if err != nil {
-				return fmt.Errorf("failed to create console client: %v", err)
+				return fmt.Errorf("failed to create console client: %w", err)
 			}
 
 			// create collector service

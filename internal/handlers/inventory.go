@@ -4,8 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	srvErrors "github.com/kubev2v/assisted-migration-agent/pkg/errors"
 	"go.uber.org/zap"
+
+	srvErrors "github.com/kubev2v/assisted-migration-agent/pkg/errors"
 )
 
 // GetInventory returns the collected inventory

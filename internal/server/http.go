@@ -62,10 +62,10 @@ func NewServer(cfg *config.Configuration, registerHandlerFn func(router *gin.Rou
 
 		cert, key, err := certificates.GenerateSelfSignedCertificate(time.Now().AddDate(1, 0, 0))
 		if err != nil {
-			return nil, fmt.Errorf("failed to generate server's certificates: %v", err)
+			return nil, fmt.Errorf("failed to generate server's certificates: %w", err)
 		}
 
-		tlsConfig, err := getTlsConfig(cert, key)
+		tlsConfig, err := getTLSConfig(cert, key)
 		if err != nil {
 			return nil, err
 		}
@@ -99,7 +99,7 @@ func (r *Server) Stop(ctx context.Context) {
 	}
 }
 
-func getTlsConfig(cert *x509.Certificate, privateKey *rsa.PrivateKey) (*tls.Config, error) {
+func getTLSConfig(cert *x509.Certificate, privateKey *rsa.PrivateKey) (*tls.Config, error) {
 	certPEM := new(bytes.Buffer)
 	if err := pem.Encode(certPEM, &pem.Block{
 		Type:  "CERTIFICATE",
@@ -123,5 +123,6 @@ func getTlsConfig(cert *x509.Certificate, privateKey *rsa.PrivateKey) (*tls.Conf
 
 	return &tls.Config{
 		Certificates: []tls.Certificate{serverCert},
+		MinVersion:   tls.VersionTLS12,
 	}, nil
 }

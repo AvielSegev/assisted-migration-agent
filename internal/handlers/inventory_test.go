@@ -56,7 +56,7 @@ var _ = Describe("Inventory Handlers", func() {
 		// Then it should return 404 Not Found
 		It("should return 404 when inventory not found", func() {
 			// Arrange
-			mockInventory.InventoryError = srvErrors.NewResourceNotFoundError("inventory not collected yet")
+			mockInventory.InventoryError = srvErrors.NewResourceNotFoundError("inventory", "")
 
 			req := httptest.NewRequest(http.MethodGet, "/inventory", nil)
 			w := httptest.NewRecorder()
@@ -70,7 +70,7 @@ var _ = Describe("Inventory Handlers", func() {
 			var response map[string]any
 			err := json.Unmarshal(w.Body.Bytes(), &response)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(response["error"]).To(ContainSubstring("inventory not collected yet"))
+			Expect(response["error"]).To(ContainSubstring("inventory not found"))
 		})
 
 		// Given an internal error occurs when fetching inventory

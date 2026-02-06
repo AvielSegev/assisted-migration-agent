@@ -15,7 +15,6 @@ type Store struct {
 	configuration *ConfigurationStore
 	inventory     *InventoryStore
 	vm            *VMStore
-	credentials   *CredentialsStore
 	inspection    *InspectionStore
 }
 
@@ -28,7 +27,6 @@ func NewStore(db *sql.DB) *Store {
 		configuration: NewConfigurationStore(qi),
 		inventory:     NewInventoryStore(qi),
 		vm:            NewVMStore(qi, parser),
-		credentials:   NewCredentialsStore(qi),
 		inspection:    NewInspectionStore(qi),
 	}
 }
@@ -59,10 +57,6 @@ func (s *Store) Inventory() *InventoryStore {
 
 func (s *Store) VM() *VMStore {
 	return s.vm
-}
-
-func (s *Store) Credentials() *CredentialsStore {
-	return s.credentials
 }
 
 func (s *Store) Inspection() *InspectionStore {

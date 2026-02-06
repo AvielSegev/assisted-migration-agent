@@ -11,9 +11,10 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/kubev2v/migration-planner/pkg/inventory/converters"
+
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	"github.com/kubev2v/assisted-migration-agent/internal/store"
-	"github.com/kubev2v/migration-planner/pkg/inventory/converters"
 )
 
 // WorkBuilder builds a sequence of WorkUnits for the v1 collector workflow.
@@ -147,13 +148,13 @@ func (b *WorkBuilder) parsing() models.WorkUnit {
 
 				inv, err := b.store.Parser().BuildInventory(ctx)
 				if err != nil {
-					return nil, fmt.Errorf("error building inventory: %v", err)
+					return nil, fmt.Errorf("error building inventory: %w", err)
 				}
 
 				// Store the inventory
 				inventory, err := json.Marshal(converters.ToAPI(inv))
 				if err != nil {
-					return nil, fmt.Errorf("failed to marshal the inventory: %v", err)
+					return nil, fmt.Errorf("failed to marshal the inventory: %w", err)
 				}
 
 				if err := b.store.Inventory().Save(ctx, inventory); err != nil {

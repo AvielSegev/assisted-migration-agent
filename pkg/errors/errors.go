@@ -9,25 +9,29 @@ import (
 // ResourceNotFoundError indicates a resource was not found.
 type ResourceNotFoundError struct {
 	Kind string
+	ID   string
 }
 
-func NewResourceNotFoundError(kind string) *ResourceNotFoundError {
-	return &ResourceNotFoundError{Kind: kind}
+func NewResourceNotFoundError(kind string, id string) *ResourceNotFoundError {
+	return &ResourceNotFoundError{Kind: kind, ID: id}
 }
 
 func NewInventoryNotFoundError() *ResourceNotFoundError {
-	return NewResourceNotFoundError("inventory")
+	return NewResourceNotFoundError("inventory", "")
 }
 
 func NewCredentialsNotFoundError() *ResourceNotFoundError {
-	return NewResourceNotFoundError("credentials")
+	return NewResourceNotFoundError("credentials", "")
 }
 
 func NewConfigurationNotFoundError() *ResourceNotFoundError {
-	return NewResourceNotFoundError("configuration")
+	return NewResourceNotFoundError("configuration", "")
 }
 
 func (e *ResourceNotFoundError) Error() string {
+	if e.ID != "" {
+		return fmt.Sprintf("%s '%s' not found", e.Kind, e.ID)
+	}
 	return fmt.Sprintf("%s not found", e.Kind)
 }
 

@@ -4,16 +4,6 @@ import (
 	"math"
 )
 
-// Contains checks if a slice contains a specific string
-func Contains(slice []string, val string) bool {
-	for _, item := range slice {
-		if item == val {
-			return true
-		}
-	}
-	return false
-}
-
 // ConvertBytesToMB converts bytes to megabytes safely
 func ConvertBytesToMB(bytes int64) int64 {
 	return bytes / (1024 * 1024)

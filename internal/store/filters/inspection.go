@@ -2,6 +2,7 @@ package filters
 
 import (
 	sq "github.com/Masterminds/squirrel"
+
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
 )
 

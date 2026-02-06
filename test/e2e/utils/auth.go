@@ -10,8 +10,9 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	. "github.com/kubev2v/assisted-migration-agent/test/e2e/model"
 	. "github.com/kubev2v/migration-planner/test/e2e"
+
+	. "github.com/kubev2v/assisted-migration-agent/test/e2e/model"
 )
 
 // GetToken retrieves the private key from the specified path, parses it, and then generates a token
