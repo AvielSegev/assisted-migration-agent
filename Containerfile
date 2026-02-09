@@ -3,7 +3,7 @@ ARG AGENT_UI_IMAGE_TAG=latest
 FROM --platform=linux/amd64 quay.io/assisted-migration/migration-planner-agent-ui:${AGENT_UI_IMAGE_TAG} AS ui-builder
 
 # Stage 2: Build the backend
-FROM --platform=linux/amd64 golang:1.24 AS backend-builder
+FROM --platform=linux/amd64 registry.access.redhat.com/ubi10/go-toolset AS backend-builder
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ COPY Makefile ./
 
 # Get git commit SHA for build
 ARG GIT_COMMIT=unknown
-RUN make build GIT_COMMIT=${GIT_COMMIT}
+RUN make build GIT_COMMIT=${GIT_COMMIT} BINARY_PATH=/tmp/agent
 
 # Stage 3: Final runtime image
 FROM --platform=linux/amd64 registry.access.redhat.com/ubi10/ubi-minimal
@@ -34,7 +34,7 @@ RUN microdnf install -y ca-certificates tzdata && \
 WORKDIR /app
 
 # Copy the binary from backend builder
-COPY --from=backend-builder /app/bin/agent /app/agent
+COPY --from=backend-builder /tmp/agent /app/agent
 
 # Copy UI static files from ui builder
 COPY --from=ui-builder /apps/agent-ui/dist /app/static
