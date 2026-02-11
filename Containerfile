@@ -2,7 +2,7 @@
 # Stage 1: Fetch the UI
 # =============================================================================
 ARG AGENT_UI_IMAGE_TAG=latest
-FROM --platform=linux/amd64 quay.io/assisted-migration/migration-planner-agent-ui:${AGENT_UI_IMAGE_TAG} AS ui-builder
+FROM --platform=linux/amd64 quay.io/redhat-user-workloads/assisted-migration-tenant/migration-planner-agent-ui:${AGENT_UI_IMAGE_TAG} AS ui-builder
 
 
 # =============================================================================
