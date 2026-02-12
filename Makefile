@@ -1,4 +1,4 @@
-.PHONY: generate generate.proto build build.e2e e2e e2e.container e2e.vm e2e.container.clean run help tidy tidy-check clean lint format check-format check-generate validate-all image
+.PHONY: generate generate.proto build build.e2e e2e e2e.container e2e.vm e2e.container.clean run container.run container.stop help tidy tidy-check clean lint format check-format check-generate validate-all image
 
 PODMAN ?= podman
 GIT_COMMIT=$(shell git rev-list -1 HEAD --abbrev-commit)
@@ -27,6 +27,7 @@ help:
 	@echo "    e2e.container.clean: remove all e2e test containers and volumes"
 	@echo "    image:           build container image"
 	@echo "    run.image:       run container image locally (requires AGENT_ID and SOURCE_ID)"
+	@echo "    run.container:   run container with persistent volume (requires AGENT_ID and SOURCE_ID)"
 	@echo "    run:             run the agent"
 	@echo "    run.ui:          start React dev server"
 	@echo "    clean:           clean up binaries and tools"
@@ -114,6 +115,48 @@ run.image: image
 		--data-folder /var/lib/agent \
 		--console-url http://host.containers.internal:7443
 	@echo "✅ Container started. View logs with: podman logs -f $(CONTAINER_NAME)"
+
+# Run container image with persistent volume
+# Usage: make run.container AGENT_ID=<uuid> SOURCE_ID=<uuid>
+AGENT_VOLUME_NAME ?= agent-data
+container.run:
+	@if [ -z "$(AGENT_ID)" ] || [ -z "$(SOURCE_ID)" ]; then \
+		echo "Error: AGENT_ID and SOURCE_ID are required"; \
+		echo "Usage: make run.container AGENT_ID=<uuid> SOURCE_ID=<uuid>"; \
+		exit 1; \
+	fi
+	@echo "Stopping existing container if running..."
+	@$(PODMAN) stop $(CONTAINER_NAME) 2>/dev/null || true
+	@$(PODMAN) rm $(CONTAINER_NAME) 2>/dev/null || true
+	@echo "Creating volume $(AGENT_VOLUME_NAME) if not exists..."
+	@$(PODMAN) volume create $(AGENT_VOLUME_NAME) 2>/dev/null || true
+	@echo "Starting container $(CONTAINER_NAME) with volume..."
+	@echo "   Image: $(IMAGE_NAME):$(IMAGE_TAG)"
+	@echo "   Agent ID: $(AGENT_ID)"
+	@echo "   Source ID: $(SOURCE_ID)"
+	@echo "   Volume: $(AGENT_VOLUME_NAME) -> /var/lib/agent"
+	@echo "   UI available at: https://localhost:8000"
+	$(PODMAN) run -d \
+		--name $(CONTAINER_NAME) \
+		-p 8000:8000 \
+		-v $(AGENT_VOLUME_NAME):/var/lib/agent \
+        -e AGENT_SERVER_MODE=prod \
+        -e AGENT_OPA_POLICIES_FOLDER=/app/policies \
+        -e AGENT_DATA_FOLDER=/var/lib/agent \
+        -e AGENT_SERVER_STATICS_FOLDER=/app/static \
+        -e AGENT_LEGACY_STATUS_ENABLED=true \
+		$(IMAGE_NAME):$(IMAGE_TAG) \
+		run \
+		--agent-id $(AGENT_ID) \
+		--source-id $(SOURCE_ID) \
+		--server-mode prod \
+		--server-statics-folder /app/static \
+		--data-folder /var/lib/agent \
+		--console-url http://host.containers.internal:7443
+	@echo "Container started. View logs with: podman logs -f $(CONTAINER_NAME)"
+
+container.stop:
+	$(PODMAN) rm --force $(CONTAINER_NAME)
 
 clean:
 	@echo "🗑️ Removing $(BINARY_PATH)..."
