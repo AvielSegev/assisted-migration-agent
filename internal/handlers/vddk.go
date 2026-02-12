@@ -21,7 +21,7 @@ const (
 func (h *Handler) PostVddk(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxVDDKSize)
 
-	dst, err := os.Create(filepath.Join(h.dataDir, vddkFilename))
+	dst, err := os.Create(filepath.Join(h.cfg.Agent.DataFolder, vddkFilename))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create file"})
 		return

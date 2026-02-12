@@ -57,8 +57,8 @@ RUN mkdir -p /app/policies /app/forklift && \
 # =============================================================================
 FROM --platform=linux/amd64 registry.access.redhat.com/ubi9/ubi-minimal
 
-ARG GIT_COMMIT=unknown
-ENV AGENT_VERSION=${GIT_COMMIT}
+ARG VERSION=v0.0.0
+ENV AGENT_VERSION=${VERSION}
 
 RUN microdnf install -y ca-certificates tzdata && \
     microdnf clean all

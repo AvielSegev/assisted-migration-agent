@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"github.com/kubev2v/assisted-migration-agent/internal/config"
 	"github.com/kubev2v/assisted-migration-agent/internal/handlers"
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	srvErrors "github.com/kubev2v/assisted-migration-agent/pkg/errors"
@@ -25,7 +26,7 @@ var _ = Describe("Inventory Handlers", func() {
 	BeforeEach(func() {
 		gin.SetMode(gin.TestMode)
 		mockInventory = &MockInventoryService{}
-		handler = handlers.New("", nil, nil, mockInventory, nil, nil)
+		handler = handlers.New(config.Configuration{}, nil, nil, mockInventory, nil, nil)
 		router = gin.New()
 		router.GET("/inventory", handler.GetInventory)
 	})

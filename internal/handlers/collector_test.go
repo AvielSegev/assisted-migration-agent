@@ -12,6 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	v1 "github.com/kubev2v/assisted-migration-agent/api/v1"
+	"github.com/kubev2v/assisted-migration-agent/internal/config"
 	"github.com/kubev2v/assisted-migration-agent/internal/handlers"
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	srvErrors "github.com/kubev2v/assisted-migration-agent/pkg/errors"
@@ -29,7 +30,7 @@ var _ = Describe("Collector Handlers", func() {
 		mockCollector = &MockCollectorService{
 			StatusResult: models.CollectorStatus{State: models.CollectorStateReady},
 		}
-		handler = handlers.New("", nil, mockCollector, nil, nil, nil)
+		handler = handlers.New(config.Configuration{}, nil, mockCollector, nil, nil, nil)
 		router = gin.New()
 		router.GET("/collector", handler.GetCollectorStatus)
 		router.POST("/collector", handler.StartCollector)

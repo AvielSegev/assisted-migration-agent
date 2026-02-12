@@ -12,6 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	v1 "github.com/kubev2v/assisted-migration-agent/api/v1"
+	"github.com/kubev2v/assisted-migration-agent/internal/config"
 	"github.com/kubev2v/assisted-migration-agent/internal/handlers"
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	"github.com/kubev2v/assisted-migration-agent/pkg/errors"
@@ -32,7 +33,7 @@ var _ = Describe("Console Handlers", func() {
 				Target:  models.ConsoleStatusDisconnected,
 			},
 		}
-		handler = handlers.New("", mockConsole, nil, nil, nil, nil)
+		handler = handlers.New(config.Configuration{}, mockConsole, nil, nil, nil, nil)
 		router = gin.New()
 		router.GET("/agent", handler.GetAgentStatus)
 		router.POST("/agent", handler.SetAgentMode)

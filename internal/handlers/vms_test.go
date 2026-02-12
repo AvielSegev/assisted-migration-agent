@@ -14,6 +14,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	v1 "github.com/kubev2v/assisted-migration-agent/api/v1"
+	"github.com/kubev2v/assisted-migration-agent/internal/config"
 	"github.com/kubev2v/assisted-migration-agent/internal/handlers"
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	"github.com/kubev2v/assisted-migration-agent/internal/services"
@@ -34,7 +35,7 @@ var _ = Describe("VMs Handlers", func() {
 		gin.SetMode(gin.TestMode)
 		mockVM = &MockVMService{}
 		mockInspector = &MockInspectorService{}
-		handler = handlers.New("", nil, nil, nil, mockVM, mockInspector)
+		handler = handlers.New(config.Configuration{}, nil, nil, nil, mockVM, mockInspector)
 		router = gin.New()
 		router.GET("/vms", func(c *gin.Context) {
 			var params v1.GetVMsParams
@@ -738,7 +739,7 @@ var _ = Describe("VMs Handlers Integration", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		vmSrv = services.NewVMService(st)
-		handler = handlers.New("", nil, nil, nil, vmSrv, nil)
+		handler = handlers.New(config.Configuration{}, nil, nil, nil, vmSrv, nil)
 		router = gin.New()
 		router.GET("/vms", func(c *gin.Context) {
 			var params v1.GetVMsParams

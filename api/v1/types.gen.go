@@ -319,6 +319,15 @@ type VcenterCredentials struct {
 	Username string `json:"username"`
 }
 
+// VersionInfo defines model for VersionInfo.
+type VersionInfo struct {
+	// GitCommit Git commit SHA used to build the agent
+	GitCommit string `json:"gitCommit"`
+
+	// Version Agent version (e.g. v2.0.0)
+	Version string `json:"version"`
+}
+
 // VmInspectionStatus defines model for VmInspectionStatus.
 type VmInspectionStatus struct {
 	// Error Error message when state is error
