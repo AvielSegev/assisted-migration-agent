@@ -19,7 +19,7 @@ func (h *Handler) GetInventory(c *gin.Context) {
 			return
 		}
 		zap.S().Named("collector_handler").Errorw("failed to get inventory", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get inventory"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

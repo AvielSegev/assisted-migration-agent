@@ -142,7 +142,7 @@ func (h *Handler) GetVM(c *gin.Context, id string) {
 			return
 		}
 		zap.S().Named("vm_handler").Errorw("failed to get VM", "id", id, "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get VM"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -169,6 +169,10 @@ func (h *Handler) GetVMInspectionStatus(c *gin.Context, id string) {
 // (DELETE /vms/{id}/inspector)
 func (h *Handler) RemoveVMFromInspection(c *gin.Context, id string) {
 	if err := h.inspectorSrv.CancelVmsInspection(c.Request.Context(), id); err != nil {
+		if srvErrors.IsInspectorNotRunningError(err) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -241,6 +245,10 @@ func (h *Handler) AddVMsToInspection(c *gin.Context) {
 	}
 
 	if err := h.inspectorSrv.Add(c.Request.Context(), vmsMoid); err != nil {
+		if srvErrors.IsInspectorNotRunningError(err) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -253,6 +261,14 @@ func (h *Handler) AddVMsToInspection(c *gin.Context) {
 // (DELETE /vms/inspector)
 func (h *Handler) StopInspection(c *gin.Context) {
 	if err := h.inspectorSrv.Stop(c.Request.Context()); err != nil {
+		if srvErrors.IsInspectorNotRunningError(err) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		if srvErrors.IsInvalidStateError(err) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

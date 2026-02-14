@@ -93,7 +93,7 @@ var _ = Describe("Inventory Handlers", func() {
 			var response map[string]any
 			err := json.Unmarshal(w.Body.Bytes(), &response)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(response["error"]).To(ContainSubstring("failed to get inventory"))
+			Expect(response["error"]).To(ContainSubstring("database error"))
 		})
 	})
 })
