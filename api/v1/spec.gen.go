@@ -34,6 +34,9 @@ type ServerInterface interface {
 	// Upload VDDK tarball
 	// (POST /vddk)
 	PostVddk(c *gin.Context)
+	// Get agent version information
+	// (GET /version)
+	GetVersion(c *gin.Context)
 	// Get list of VMs with filtering and pagination
 	// (GET /vms)
 	GetVMs(c *gin.Context, params GetVMsParams)
@@ -158,6 +161,19 @@ func (siw *ServerInterfaceWrapper) PostVddk(c *gin.Context) {
 	}
 
 	siw.Handler.PostVddk(c)
+}
+
+// GetVersion operation middleware
+func (siw *ServerInterfaceWrapper) GetVersion(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetVersion(c)
 }
 
 // GetVMs operation middleware
@@ -416,6 +432,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.POST(options.BaseURL+"/collector", wrapper.StartCollector)
 	router.GET(options.BaseURL+"/inventory", wrapper.GetInventory)
 	router.POST(options.BaseURL+"/vddk", wrapper.PostVddk)
+	router.GET(options.BaseURL+"/version", wrapper.GetVersion)
 	router.GET(options.BaseURL+"/vms", wrapper.GetVMs)
 	router.DELETE(options.BaseURL+"/vms/inspector", wrapper.StopInspection)
 	router.GET(options.BaseURL+"/vms/inspector", wrapper.GetInspectorStatus)

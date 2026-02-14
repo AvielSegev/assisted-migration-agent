@@ -215,6 +215,7 @@ func (a *Agent) ToOption() AgentOption {
 		to.ID = a.ID
 		to.SourceID = a.SourceID
 		to.Version = a.Version
+		to.GitCommit = a.GitCommit
 		to.NumWorkers = a.NumWorkers
 		to.DataFolder = a.DataFolder
 		to.OpaPoliciesFolder = a.OpaPoliciesFolder
@@ -230,6 +231,7 @@ func (a *Agent) DebugMap() map[string]any {
 	debugMap["ID"] = helpers.DebugValue(a.ID, false)
 	debugMap["SourceID"] = helpers.DebugValue(a.SourceID, false)
 	debugMap["Version"] = helpers.DebugValue(a.Version, false)
+	debugMap["GitCommit"] = helpers.DebugValue(a.GitCommit, false)
 	debugMap["NumWorkers"] = helpers.DebugValue(a.NumWorkers, false)
 	debugMap["DataFolder"] = helpers.DebugValue(a.DataFolder, false)
 	debugMap["OpaPoliciesFolder"] = helpers.DebugValue(a.OpaPoliciesFolder, false)
@@ -279,6 +281,13 @@ func WithSourceID(sourceID string) AgentOption {
 func WithVersion(version string) AgentOption {
 	return func(a *Agent) {
 		a.Version = version
+	}
+}
+
+// WithGitCommit returns an option that can set GitCommit on a Agent
+func WithGitCommit(gitCommit string) AgentOption {
+	return func(a *Agent) {
+		a.GitCommit = gitCommit
 	}
 }
 

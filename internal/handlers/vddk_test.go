@@ -15,6 +15,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"github.com/kubev2v/assisted-migration-agent/internal/config"
 	"github.com/kubev2v/assisted-migration-agent/internal/handlers"
 )
 
@@ -31,7 +32,7 @@ var _ = Describe("PostVddk", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		gin.SetMode(gin.TestMode)
-		handler = handlers.New(tempDir, nil, nil, nil, nil, nil)
+		handler = handlers.New(config.Configuration{Agent: config.Agent{DataFolder: tempDir}}, nil, nil, nil, nil, nil)
 		router = gin.New()
 		router.POST("/vddk", handler.PostVddk)
 	})
@@ -100,7 +101,7 @@ var _ = Describe("PostVddk", func() {
 	It("should return 500 when dataDir does not exist", func() {
 		// Arrange
 		nonExistentDir := filepath.Join(tempDir, "nonexistent")
-		handler = handlers.New(nonExistentDir, nil, nil, nil, nil, nil)
+		handler = handlers.New(config.Configuration{Agent: config.Agent{DataFolder: nonExistentDir}}, nil, nil, nil, nil, nil)
 		router = gin.New()
 		router.POST("/vddk", handler.PostVddk)
 

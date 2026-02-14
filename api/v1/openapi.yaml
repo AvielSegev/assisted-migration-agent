@@ -342,6 +342,18 @@ paths:
           description: Inspector not running
         '500':
           description: Internal server error
+  /version:
+    get:
+      summary: Get agent version information
+      operationId: getVersion
+      responses:
+        '200':
+          description: Version information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionInfo'
+
   /vddk:
     post:
       summary: Upload VDDK tarball
@@ -385,6 +397,19 @@ paths:
 
 components:
   schemas:
+    VersionInfo:
+      type: object
+      required:
+        - version
+        - gitCommit
+      properties:
+        version:
+          type: string
+          description: Agent version (e.g. v2.0.0)
+        gitCommit:
+          type: string
+          description: Git commit SHA used to build the agent
+
     CollectorStartRequest:
       type: object
       required:

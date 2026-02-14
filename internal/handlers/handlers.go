@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 
+	"github.com/kubev2v/assisted-migration-agent/internal/config"
 	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	"github.com/kubev2v/assisted-migration-agent/internal/services"
 )
@@ -42,16 +43,16 @@ type InspectorService interface {
 }
 
 type Handler struct {
+	cfg          config.Configuration
 	consoleSrv   ConsoleService
 	collectorSrv CollectorService
 	inventorySrv InventoryService
 	inspectorSrv InspectorService
 	vmSrv        VMService
-	dataDir      string
 }
 
 func New(
-	dataDir string,
+	cfg config.Configuration,
 	consoleSrv ConsoleService,
 	collectorSrv CollectorService,
 	inventorySrv InventoryService,
@@ -59,11 +60,11 @@ func New(
 	inspectorSrv InspectorService,
 ) *Handler {
 	return &Handler{
+		cfg:          cfg,
 		consoleSrv:   consoleSrv,
 		collectorSrv: collectorSrv,
 		inventorySrv: inventorySrv,
 		vmSrv:        vmSrv,
 		inspectorSrv: inspectorSrv,
-		dataDir:      dataDir,
 	}
 }

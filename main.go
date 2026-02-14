@@ -14,6 +14,9 @@ import (
 	"github.com/kubev2v/assisted-migration-agent/pkg/logger"
 )
 
+// gitCommit is set at build time via -ldflags "-X main.gitCommit=..."
+var gitCommit = "unknown"
+
 func main() {
 	rootCmd := &cobra.Command{
 		Use:   "agent",
@@ -30,6 +33,7 @@ func main() {
 		}),
 		config.WithAgent(config.Agent{
 			Version:             "v0.0.0",
+			GitCommit:           gitCommit,
 			NumWorkers:          3,
 			Mode:                "disconnected",
 			UpdateInterval:      5 * time.Second,

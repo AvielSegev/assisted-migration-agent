@@ -2,6 +2,7 @@
 
 PODMAN ?= podman
 GIT_COMMIT=$(shell git rev-list -1 HEAD --abbrev-commit)
+VERSION=$(shell cat VERSION)
 
 BINARY_NAME=agent
 BINARY_PATH=bin/$(BINARY_NAME)
@@ -44,7 +45,7 @@ help:
 # Build the application
 build:
 	@echo "Building $(BINARY_NAME)..."
-	go build -ldflags="-X main.sha=${GIT_COMMIT}" -o $(BINARY_PATH) $(MAIN_PATH)
+	go build -ldflags="-X main.gitCommit=${GIT_COMMIT}" -o $(BINARY_PATH) $(MAIN_PATH)
 	@echo "Build complete: $(BINARY_PATH)"
 
 build.e2e:
@@ -80,7 +81,7 @@ e2e.container.clean:
 # Build container image
 image:
 	@echo "📦 Building container image $(IMAGE_NAME):$(IMAGE_TAG)..."
-	$(PODMAN) build --build-arg GIT_COMMIT=$(GIT_COMMIT) --build-arg AGENT_UI_IMAGE_TAG=$(AGENT_UI_IMAGE_TAG) -t $(IMAGE_NAME):$(IMAGE_TAG) -f Containerfile .
+	$(PODMAN) build --build-arg GIT_COMMIT=$(GIT_COMMIT) --build-arg VERSION=$(VERSION) --build-arg AGENT_UI_IMAGE_TAG=$(AGENT_UI_IMAGE_TAG) -t $(IMAGE_NAME):$(IMAGE_TAG) -f Containerfile .
 	@echo "✅ Image built: $(IMAGE_NAME):$(IMAGE_TAG)"
 
 # Run container image locally
