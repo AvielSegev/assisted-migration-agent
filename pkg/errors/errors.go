@@ -158,3 +158,8 @@ func NewInspectorNotRunningError() *InspectorNotRunningError {
 func (e *InspectorNotRunningError) Error() string {
 	return "inspector not running"
 }
+
+func IsInspectorNotRunningError(err error) bool {
+	var e *InspectorNotRunningError
+	return errors.As(err, &e)
+}

@@ -49,13 +49,12 @@ func (h *Handler) StartCollector(c *gin.Context) {
 
 	// Start collection (saves creds, verifies, starts async job)
 	if err := h.collectorSrv.Start(c.Request.Context(), creds); err != nil {
-		switch err.(type) {
-		case *srvErrors.CollectionInProgressError:
+		if srvErrors.IsCollectionInProgressError(err) {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-		default:
-			zap.S().Named("collector_handler").Errorw("failed to start collector", "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start collector"})
+			return
 		}
+		zap.S().Named("collector_handler").Errorw("failed to start collector", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

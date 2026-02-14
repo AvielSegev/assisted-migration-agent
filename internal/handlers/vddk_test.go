@@ -92,7 +92,7 @@ var _ = Describe("PostVddk", func() {
 		var response map[string]any
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(response["error"]).To(ContainSubstring("64MB"))
+		Expect(response["error"]).NotTo(BeEmpty())
 	})
 
 	// Given a non-existent data directory
@@ -119,7 +119,7 @@ var _ = Describe("PostVddk", func() {
 		var response map[string]any
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(response["error"]).To(ContainSubstring("failed to create file"))
+		Expect(response["error"]).To(ContainSubstring("no such file or directory"))
 	})
 
 	// Given an empty request body

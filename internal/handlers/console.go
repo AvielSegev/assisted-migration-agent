@@ -45,7 +45,7 @@ func (h *Handler) SetAgentMode(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to set agent mode"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

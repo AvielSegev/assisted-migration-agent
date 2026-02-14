@@ -23,7 +23,7 @@ func (h *Handler) PostVddk(c *gin.Context) {
 
 	dst, err := os.Create(filepath.Join(h.cfg.Agent.DataFolder, vddkFilename))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create file"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	defer dst.Close()
@@ -33,10 +33,10 @@ func (h *Handler) PostVddk(c *gin.Context) {
 	if err != nil {
 		var maxBytesErr *http.MaxBytesError
 		if errors.As(err, &maxBytesErr) {
-			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "file exceeds 64MB"})
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
