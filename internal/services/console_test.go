@@ -22,6 +22,7 @@ import (
 	"github.com/kubev2v/assisted-migration-agent/pkg/console"
 	srvErrors "github.com/kubev2v/assisted-migration-agent/pkg/errors"
 	"github.com/kubev2v/assisted-migration-agent/pkg/scheduler"
+	"github.com/kubev2v/assisted-migration-agent/test"
 )
 
 // MockCollector implements Collector interface for testing
@@ -76,7 +77,7 @@ var _ = Describe("Console Service", func() {
 		err = migrations.Run(context.Background(), db)
 		Expect(err).NotTo(HaveOccurred())
 
-		st = store.NewStore(db)
+		st = store.NewStore(db, test.NewMockValidator())
 
 		cfg = config.Agent{
 			ID:             agentID,

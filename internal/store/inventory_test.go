@@ -10,6 +10,7 @@ import (
 	"github.com/kubev2v/assisted-migration-agent/internal/store"
 	"github.com/kubev2v/assisted-migration-agent/internal/store/migrations"
 	srvErrors "github.com/kubev2v/assisted-migration-agent/pkg/errors"
+	"github.com/kubev2v/assisted-migration-agent/test"
 )
 
 var _ = Describe("InventoryStore", func() {
@@ -29,7 +30,7 @@ var _ = Describe("InventoryStore", func() {
 		err = migrations.Run(ctx, db)
 		Expect(err).NotTo(HaveOccurred())
 
-		s = store.NewStore(db)
+		s = store.NewStore(db, test.NewMockValidator())
 	})
 
 	AfterEach(func() {

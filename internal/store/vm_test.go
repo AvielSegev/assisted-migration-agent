@@ -26,7 +26,7 @@ var _ = Describe("VMStore", func() {
 		db, err = store.NewDB(":memory:")
 		Expect(err).NotTo(HaveOccurred())
 
-		s = store.NewStore(db)
+		s = store.NewStore(db, test.NewMockValidator())
 
 		err = s.Migrate(ctx)
 		Expect(err).NotTo(HaveOccurred())

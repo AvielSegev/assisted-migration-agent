@@ -24,6 +24,8 @@ import (
 
 	"github.com/go-extras/cobraflags"
 
+	"github.com/kubev2v/migration-planner/pkg/opa"
+
 	v1 "github.com/kubev2v/assisted-migration-agent/api/v1"
 	"github.com/kubev2v/assisted-migration-agent/internal/config"
 	"github.com/kubev2v/assisted-migration-agent/internal/handlers"
@@ -64,21 +66,12 @@ func NewRunCommand(cfg *config.Configuration) *cobra.Command {
 			wg := sync.WaitGroup{}
 			wg.Add(1)
 
-			// init store
-			dbPath := filepath.Join(cfg.Agent.DataFolder, "agent.duckdb")
-			if cfg.Agent.DataFolder == "" {
-				dbPath = ":memory:"
-				zap.S().Warn("data-folder not set, using in-memory database (data will not persist)")
-			}
-			db, err := store.NewDB(dbPath)
+			store, err := initStore(cfg)
 			if err != nil {
-				zap.S().Errorw("failed to initialize database", "error", err)
 				return err
 			}
-			s := store.NewStore(db)
-			defer s.Close()
 
-			if err := s.Migrate(context.Background()); err != nil {
+			if err := store.Migrate(context.Background()); err != nil {
 				zap.S().Errorw("failed to run migrations", "error", err)
 				return err
 			}
@@ -107,18 +100,18 @@ func NewRunCommand(cfg *config.Configuration) *cobra.Command {
 			}
 
 			// create collector service
-			workBuilder := collectorv1.NewWorkBuilder(s, cfg.Agent.DataFolder, cfg.Agent.OpaPoliciesFolder)
-			collectorSrv := services.NewCollectorService(sched, s, workBuilder)
+			workBuilder := collectorv1.NewWorkBuilder(store, cfg.Agent.DataFolder, cfg.Agent.OpaPoliciesFolder)
+			collectorSrv := services.NewCollectorService(sched, store, workBuilder)
 
 			// create inspector service
-			inspectorSrv := services.NewInspectorService(sched, s).WithBuilder(models.UnimplementedInspectorWorkBuilder{})
+			inspectorSrv := services.NewInspectorService(sched, store).WithBuilder(models.UnimplementedInspectorWorkBuilder{})
 
-			consoleSrv, err := services.NewConsoleService(cfg.Agent, sched, consoleClient, collectorSrv, s)
+			consoleSrv, err := services.NewConsoleService(cfg.Agent, sched, consoleClient, collectorSrv, store)
 			if err != nil {
 				return fmt.Errorf("failed to create console service: %w", err)
 			}
-			inventorySrv := services.NewInventoryService(s)
-			vmSrv := services.NewVMService(s)
+			inventorySrv := services.NewInventoryService(store)
+			vmSrv := services.NewVMService(store)
 
 			// init handlers
 			h := handlers.New(*cfg, consoleSrv, collectorSrv, inventorySrv, vmSrv, inspectorSrv)
@@ -159,7 +152,9 @@ func NewRunCommand(cfg *config.Configuration) *cobra.Command {
 
 			consoleSrv.Stop()
 			collectorSrv.Stop()
+			_ = inspectorSrv.Stop(context.Background())
 			sched.Close()
+			store.Close()
 
 			zap.S().Info("services and scheduler closed")
 
@@ -228,6 +223,28 @@ func validateConfiguration(cfg *config.Configuration) error {
 	}
 
 	return nil
+}
+
+func initStore(cfg *config.Configuration) (*store.Store, error) {
+	// init store
+	dbPath := filepath.Join(cfg.Agent.DataFolder, "agent.duckdb")
+	if cfg.Agent.DataFolder == "" {
+		dbPath = ":memory:"
+		zap.S().Warn("data-folder not set, using in-memory database (data will not persist)")
+	}
+	db, err := store.NewDB(dbPath)
+	if err != nil {
+		zap.S().Errorw("failed to initialize database", "error", err)
+		return nil, err
+	}
+
+	opaValidator, err := opa.NewValidatorFromDir(cfg.Agent.OpaPoliciesFolder)
+	if err != nil {
+		zap.S().Errorw("failed to initialize OPA validator", "error", err)
+		return nil, err
+	}
+
+	return store.NewStore(db, opaValidator), nil
 }
 
 func validateUUID(value, name string) error {

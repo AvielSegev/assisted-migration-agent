@@ -13,6 +13,7 @@ import (
 	"github.com/kubev2v/assisted-migration-agent/internal/store"
 	"github.com/kubev2v/assisted-migration-agent/internal/store/migrations"
 	"github.com/kubev2v/assisted-migration-agent/pkg/scheduler"
+	"github.com/kubev2v/assisted-migration-agent/test"
 )
 
 type mockWorkBuilder struct {
@@ -100,7 +101,7 @@ var _ = Describe("CollectorService", func() {
 		err = migrations.Run(ctx, db)
 		Expect(err).NotTo(HaveOccurred())
 
-		st = store.NewStore(db)
+		st = store.NewStore(db, test.NewMockValidator())
 		sched = scheduler.NewScheduler(1)
 		srv = services.NewCollectorService(sched, st, &mockWorkBuilder{store: st})
 	})

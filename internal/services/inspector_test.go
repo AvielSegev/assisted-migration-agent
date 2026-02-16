@@ -16,6 +16,7 @@ import (
 	"github.com/kubev2v/assisted-migration-agent/internal/store/migrations"
 	srvErrors "github.com/kubev2v/assisted-migration-agent/pkg/errors"
 	"github.com/kubev2v/assisted-migration-agent/pkg/scheduler"
+	"github.com/kubev2v/assisted-migration-agent/test"
 )
 
 // getVCenterCredentials returns test credentials for vCenter.
@@ -122,7 +123,7 @@ var _ = Describe("InspectorService", func() {
 		insertVM("vm-2", "test-vm-2")
 		insertVM("vm-3", "test-vm-3")
 
-		st = store.NewStore(db)
+		st = store.NewStore(db, test.NewMockValidator())
 		sched = scheduler.NewScheduler(1)
 		srv = services.NewInspectorService(sched, st)
 	})
@@ -589,7 +590,7 @@ var _ = Describe("InspectionStore", func() {
 		insertVM("vm-b", "test-vm-b")
 		insertVM("vm-c", "test-vm-c")
 
-		st = store.NewStore(db)
+		st = store.NewStore(db, test.NewMockValidator())
 	})
 
 	AfterEach(func() {

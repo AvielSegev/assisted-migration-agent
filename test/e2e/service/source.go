@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/kubev2v/migration-planner/api/v1alpha1"
 	api "github.com/kubev2v/migration-planner/api/v1alpha1"
-	. "github.com/kubev2v/migration-planner/test/e2e"
 	"go.uber.org/zap"
 )
 
@@ -20,19 +19,6 @@ func (s *PlannerSvc) CreateSource(name string) (*api.Source, error) {
 	zap.S().Infof("[PlannerService] Creating source: %s", name)
 
 	params := &v1alpha1.CreateSourceJSONRequestBody{Name: name}
-
-	if TestOptions.DisconnectedEnvironment { // make the service unreachable
-
-		toStrPtr := func(s string) *string {
-			return &s
-		}
-
-		params.Proxy = &api.AgentProxy{
-			HttpUrl:  toStrPtr("http://127.0.0.1"),
-			HttpsUrl: toStrPtr("https://127.0.0.1"),
-			NoProxy:  toStrPtr("vcenter.com"),
-		}
-	}
 
 	reqBody, err := json.Marshal(params)
 	if err != nil {

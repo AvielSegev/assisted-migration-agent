@@ -18,9 +18,9 @@ type Store struct {
 	inspection    *InspectionStore
 }
 
-func NewStore(db *sql.DB) *Store {
+func NewStore(db *sql.DB, validator duckdb_parser.Validator) *Store {
 	qi := newQueryInterceptor(db)
-	parser := duckdb_parser.New(db, nil)
+	parser := duckdb_parser.New(db, validator)
 	return &Store{
 		db:            db,
 		parser:        parser,

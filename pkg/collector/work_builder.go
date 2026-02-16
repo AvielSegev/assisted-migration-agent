@@ -110,15 +110,6 @@ func (b *WorkBuilder) parsing() models.WorkUnit {
 
 				sqlitePath := b.collector.DBPath()
 
-				// if b.opaPoliciesDir != "" {
-				// 	opaValidator, err := opa.NewValidatorFromDir(b.opaPoliciesDir)
-				// 	if err != nil {
-				// 		zap.S().Named("collector_service").Warnw("failed to initialize OPA validator", "error", err)
-				// 	} else {
-				// 		validator = opaValidator
-				// 	}
-				// }
-
 				if _, err := os.Stat(sqlitePath); err != nil {
 					zap.S().Named("collector_service").Errorw("sqlite file not accessible", "path", sqlitePath, "error", err)
 					return nil, err

@@ -1,8 +1,12 @@
-.PHONY: generate generate.proto build build.e2e e2e e2e.container e2e.vm e2e.container.clean run container.run container.stop help tidy tidy-check clean lint format check-format check-generate validate-all image
+.PHONY: generate generate.proto build build.e2e e2e e2e.container e2e.vm e2e.container.clean run container.run container.stop help tidy tidy-check clean lint format check-format check-generate validate-all image setup-opa-policies clean-opa-policies
 
 PODMAN ?= podman
 GIT_COMMIT=$(shell git rev-list -1 HEAD --abbrev-commit)
 VERSION=$(shell cat VERSION)
+
+# OPA Policies
+OPA_POLICIES_FOLDER ?= $(CURDIR)/policies
+FORKLIFT_POLICIES_TMP_DIR ?= /tmp/forklift-policies
 
 BINARY_NAME=agent
 BINARY_PATH=bin/$(BINARY_NAME)
@@ -41,6 +45,8 @@ help:
 	@echo "    check-format:    check that formatting does not introduce changes"
 	@echo "    tidy:            tidy go mod"
 	@echo "    tidy-check:      check that go.mod and go.sum are tidy"
+	@echo "    setup-opa-policies: download OPA policies from Forklift project"
+	@echo "    clean-opa-policies: clean OPA policies directory"
 
 # Build the application
 build:
@@ -87,8 +93,8 @@ image:
 # Run container image locally
 # Usage: make run.image AGENT_ID=<uuid> SOURCE_ID=<uuid>
 # Example: make run.image AGENT_ID=550e8400-e29b-41d4-a716-446655440000 SOURCE_ID=6ba7b810-9dad-11d1-80b4-00c04fd430c8
-AGENT_ID ?=
-SOURCE_ID ?=
+AGENT_ID ?= `uuidgen`
+SOURCE_ID ?= `uuidgen`
 CONTAINER_NAME ?= migration-planner-agent
 run.image: image
 	@if [ -z "$(AGENT_ID)" ] || [ -z "$(SOURCE_ID)" ]; then \
@@ -165,7 +171,7 @@ clean:
 	@echo "✅ Clean complete."
 
 run:
-	$(BINARY_PATH) run
+	$(BINARY_PATH) run --opa-policies-folder $(OPA_POLICIES_FOLDER) --agent-id $(AGENT_ID) --source-id $(SOURCE_ID)
 
 run.ui:
 	cd $(CURDIR)/ui && npm run start
@@ -280,6 +286,34 @@ vcsim:
 	@echo "🚀 Starting vcsim container using $(PODMAN)..."
 	@$(PODMAN) run -d --name $(VCSIM_CONTAINER_NAME) --rm -p $(VCSIM_PORT):$(VCSIM_PORT) \
 		$(VCSIM_IMAGE) -l :$(VCSIM_PORT) -dc 1 -cluster 1 -ds 1 -host 1 -vm 3
+
+##################### OPA Policies support start ##########################
+setup-opa-policies:
+	@echo "Setting up OPA policies for local development..."
+	@mkdir -p $(OPA_POLICIES_FOLDER)
+	@if [ -z "$$(find $(OPA_POLICIES_FOLDER) -name '*.rego' 2>/dev/null)" ]; then \
+		echo "Downloading policies from Forklift GitHub repository..."; \
+		mkdir -p $(FORKLIFT_POLICIES_TMP_DIR); \
+		curl -L https://github.com/kubev2v/forklift/archive/main.tar.gz \
+			| tar -xz -C $(FORKLIFT_POLICIES_TMP_DIR) --strip-components=1; \
+		if [ -d "$(FORKLIFT_POLICIES_TMP_DIR)/validation/policies/io/konveyor/forklift/vmware" ]; then \
+			find $(FORKLIFT_POLICIES_TMP_DIR)/validation/policies/io/konveyor/forklift/vmware \
+				-name "*.rego" ! -name "*_test.rego" -exec cp {} $(OPA_POLICIES_FOLDER)/ \; ; \
+			echo "Successfully downloaded VMware policies"; \
+		else \
+			echo "Failed to download policies from GitHub"; \
+			exit 1; \
+		fi; \
+		rm -rf $(FORKLIFT_POLICIES_TMP_DIR); \
+	fi
+	@echo "OPA policies ready in $(OPA_POLICIES_FOLDER)"
+	@echo "Found $$(find $(OPA_POLICIES_FOLDER) -name '*.rego' | wc -l) .rego files"
+
+clean-opa-policies:
+	@echo "Cleaning OPA policies..."
+	@rm -rf $(OPA_POLICIES_FOLDER)
+	@echo "OPA policies cleaned."
+##################### OPA Policies support end   ##########################
 
 ################################################################################
 # Emoji Legend for Makefile Targets

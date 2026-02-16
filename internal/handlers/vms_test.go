@@ -728,7 +728,7 @@ var _ = Describe("VMs Handlers Integration", func() {
 		db, err = store.NewDB(":memory:")
 		Expect(err).NotTo(HaveOccurred())
 
-		st = store.NewStore(db)
+		st = store.NewStore(db, test.NewMockValidator())
 
 		// Migrate the store (creates vinfo, vdisk, concerns tables via parser.Init())
 		err = st.Migrate(ctx)
