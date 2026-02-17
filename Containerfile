@@ -8,26 +8,14 @@ FROM --platform=linux/amd64 quay.io/redhat-user-workloads/assisted-migration-ten
 # =============================================================================
 # Stage 2: Build the backend
 # =============================================================================
-FROM --platform=linux/amd64 registry.access.redhat.com/ubi9/ubi-minimal AS backend-builder
-
-# Install Go and build tools (needed for duckdb bindings)
-RUN microdnf install -y golang git make gcc gcc-c++ && \
-    microdnf clean all
-
-WORKDIR /app
+FROM --platform=linux/amd64 registry.access.redhat.com/ubi9/go-toolset AS backend-builder
 
 # Copy go module files first for better caching
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source code
-COPY main.go Makefile ./
-COPY cmd/     ./cmd/
-COPY internal/ ./internal/
-COPY pkg/     ./pkg/
-COPY api/     ./api/
-
-# Build the binary
+USER 0
+COPY . .
 ARG GIT_COMMIT=unknown
 RUN make build GIT_COMMIT=${GIT_COMMIT} BINARY_PATH=/tmp/agent
 
