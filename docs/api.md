@@ -1,5 +1,31 @@
 # API Reference
 
+## Version Endpoint
+
+### GET /api/v1/version
+
+Returns the agent version and git commit.
+
+```bash
+curl http://localhost:8000/api/v1/version
+```
+
+#### Response
+
+```json
+{
+  "version": "v2.0.0",
+  "gitCommit": "abc1234"
+}
+```
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `version` | string | Agent version (from `VERSION` file, e.g. `v2.0.0`) |
+| `gitCommit` | string | Git commit SHA at build time |
+
 ## VMs Endpoint
 
 ### GET /api/v1/vms
