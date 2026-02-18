@@ -65,7 +65,6 @@ func main() {
 	flag.StringVar(&cfg.AgentAPIUrl, "agent-api-url", "https://localhost:8000", "Agent local API url")
 	flag.StringVar(&cfg.PodmanSocket, "podman-socket", "unix:///run/user/1000/podman/podman.sock", "Podman socket path")
 	flag.StringVar(&cfg.IsoPath, "iso-path", "", "Path to directory containing rhcos-live-iso.x86_64.iso")
-	flag.BoolVar(&cfg.KeepContainers, "keep-containers", false, "Keep containers running after test completion (useful for debugging)")
 	flag.Parse()
 
 	logger, err := zap.NewDevelopment()
