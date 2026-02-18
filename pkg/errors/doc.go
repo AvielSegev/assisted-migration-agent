@@ -136,6 +136,6 @@
 //	case errors.IsModeConflictError(err):
 //	    c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 //	default:
-//	    c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+//	    c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 //	}
 package errors
