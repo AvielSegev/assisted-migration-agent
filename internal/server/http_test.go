@@ -50,7 +50,7 @@ var _ = Describe("HTTP Server", func() {
 	})
 
 	AfterEach(func() {
-		os.RemoveAll(tempDir)
+		_ = os.RemoveAll(tempDir)
 	})
 
 	Context("dev server mode", func() {
@@ -83,7 +83,7 @@ var _ = Describe("HTTP Server", func() {
 			resp, err := http.Get(fmt.Sprintf("http://localhost:%d/api/v1/health", cfg.Server.HTTPPort))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(200))
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		})
 	})
 
@@ -123,7 +123,7 @@ var _ = Describe("HTTP Server", func() {
 			resp, err := client.Get(fmt.Sprintf("https://localhost:%d/api/v1/health", cfg.Server.HTTPPort))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(200))
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		})
 
 		// Given a production server with static files
@@ -148,7 +148,7 @@ var _ = Describe("HTTP Server", func() {
 			resp, err := client.Get(fmt.Sprintf("https://localhost:%d/", cfg.Server.HTTPPort))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(200))
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		})
 
 		// Given a production server
@@ -173,7 +173,7 @@ var _ = Describe("HTTP Server", func() {
 			resp, err := client.Get(fmt.Sprintf("https://localhost:%d/api/v1/nonexistent", cfg.Server.HTTPPort))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(404))
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		})
 
 		// Given a production server
@@ -198,7 +198,7 @@ var _ = Describe("HTTP Server", func() {
 			resp, err := client.Get(fmt.Sprintf("https://localhost:%d/some/spa/route", cfg.Server.HTTPPort))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(200))
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		})
 
 		// Given a running production server

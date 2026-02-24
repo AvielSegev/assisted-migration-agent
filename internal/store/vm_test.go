@@ -34,7 +34,7 @@ var _ = Describe("VMStore", func() {
 
 	AfterEach(func() {
 		if db != nil {
-			db.Close()
+			_ = db.Close()
 		}
 	})
 

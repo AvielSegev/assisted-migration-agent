@@ -33,7 +33,7 @@ var _ = Describe("Migrations", func() {
 
 	AfterEach(func() {
 		if db != nil {
-			db.Close()
+			_ = db.Close()
 		}
 	})
 
@@ -83,7 +83,9 @@ var _ = Describe("Migrations", func() {
 			// Verify schema_migrations table has entries
 			rows, err := db.QueryContext(ctx, `SELECT version FROM schema_migrations ORDER BY version`)
 			Expect(err).NotTo(HaveOccurred())
-			defer rows.Close()
+			defer func() {
+				_ = rows.Close()
+			}()
 
 			var versions []int
 			for rows.Next() {
@@ -106,7 +108,9 @@ var _ = Describe("Migrations", func() {
 
 			rows, err := db.QueryContext(ctx, `SELECT version FROM schema_migrations ORDER BY version`)
 			Expect(err).NotTo(HaveOccurred())
-			defer rows.Close()
+			defer func() {
+				_ = rows.Close()
+			}()
 
 			var versions []int
 			for rows.Next() {

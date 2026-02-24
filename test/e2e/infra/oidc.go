@@ -161,7 +161,7 @@ func (o *OIDCServer) handleDiscovery(w http.ResponseWriter, _ *http.Request) {
 		JWKSURI: o.JWKSURL(),
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(doc)
+	_ = json.NewEncoder(w).Encode(doc)
 }
 
 // handleJWKS serves the JSON Web Key Set containing the RSA public key.
@@ -182,7 +182,7 @@ func (o *OIDCServer) handleJWKS(w http.ResponseWriter, _ *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // handleToken generates a signed JWT for the given user claims.
@@ -210,5 +210,5 @@ func (o *OIDCServer) handleToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tokenResponse{Token: signed})
+	_ = json.NewEncoder(w).Encode(tokenResponse{Token: signed})
 }

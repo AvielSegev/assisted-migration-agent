@@ -136,7 +136,7 @@ var _ = Describe("InspectorService", func() {
 			sched.Close()
 		}
 		if db != nil {
-			db.Close()
+			_ = db.Close()
 		}
 	})
 
@@ -595,7 +595,7 @@ var _ = Describe("InspectionStore", func() {
 
 	AfterEach(func() {
 		if db != nil {
-			db.Close()
+			_ = db.Close()
 		}
 	})
 

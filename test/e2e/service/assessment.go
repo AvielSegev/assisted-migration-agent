@@ -37,7 +37,9 @@ func (s *PlannerSvc) CreateAssessment(name, sourceType string, sourceId *uuid.UU
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func() {
+		_ = res.Body.Close()
+	}()
 
 	bodyBytes, err := io.ReadAll(res.Body)
 	defer func() { _ = res.Body.Close() }()
@@ -114,7 +116,9 @@ func (s *PlannerSvc) CreateRVToolsJob(name, filepath string) (*v1alpha1.Job, err
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func() {
+		_ = res.Body.Close()
+	}()
 
 	bodyBytes, err := io.ReadAll(res.Body)
 	defer func() { _ = res.Body.Close() }()
@@ -140,8 +144,9 @@ func (s *PlannerSvc) GetJob(id int64) (*v1alpha1.Job, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
-
+	defer func() {
+		_ = res.Body.Close()
+	}()
 	bodyBytes, err := io.ReadAll(res.Body)
 	defer func() { _ = res.Body.Close() }()
 	if err != nil {
@@ -195,7 +200,9 @@ func (s *PlannerSvc) GetAssessment(id uuid.UUID) (*v1alpha1.Assessment, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func() {
+		_ = res.Body.Close()
+	}()
 
 	bodyBytes, err := io.ReadAll(res.Body)
 	defer func() { _ = res.Body.Close() }()
@@ -223,7 +230,9 @@ func (s *PlannerSvc) GetAssessments() (*v1alpha1.AssessmentList, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func() {
+		_ = res.Body.Close()
+	}()
 
 	bodyBytes, err := io.ReadAll(res.Body)
 	defer func() { _ = res.Body.Close() }()
@@ -286,7 +295,9 @@ func (s *PlannerSvc) RemoveAssessment(id uuid.UUID) error {
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer func() {
+		_ = res.Body.Close()
+	}()
 
 	// Spec returns 200 with Assessment body
 	if res.StatusCode != http.StatusOK {

@@ -55,7 +55,9 @@ func (s *VMStore) List(ctx context.Context, opts ...ListOption) ([]models.Virtua
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	var vms []models.VirtualMachineSummary
 	for rows.Next() {

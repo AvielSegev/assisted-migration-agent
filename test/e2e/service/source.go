@@ -10,12 +10,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kubev2v/migration-planner/api/v1alpha1"
-	api "github.com/kubev2v/migration-planner/api/v1alpha1"
 	"go.uber.org/zap"
 )
 
 // CreateSource sends a request to create a new source with the given name
-func (s *PlannerSvc) CreateSource(name string) (*api.Source, error) {
+func (s *PlannerSvc) CreateSource(name string) (*v1alpha1.Source, error) {
 	zap.S().Infof("[PlannerService] Creating source: %s", name)
 
 	params := &v1alpha1.CreateSourceJSONRequestBody{Name: name}
@@ -60,7 +59,9 @@ func (s *PlannerSvc) GetImageUrl(id uuid.UUID) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get source url: %w", err)
 	}
-	defer res.Body.Close()
+	defer func() {
+		_ = res.Body.Close()
+	}()
 
 	var result struct {
 		ExpiresAt string `json:"expires_at"`
@@ -80,7 +81,7 @@ func (s *PlannerSvc) GetImageUrl(id uuid.UUID) (string, error) {
 }
 
 // GetSource fetches a single source by UUID
-func (s *PlannerSvc) GetSource(id uuid.UUID) (*api.Source, error) {
+func (s *PlannerSvc) GetSource(id uuid.UUID) (*v1alpha1.Source, error) {
 	zap.S().Infof("[PlannerService] Get source: %s", id)
 	res, err := s.api.GetRequest(path.Join(apiV1SourcesPath, id.String()))
 	if err != nil {
@@ -110,7 +111,7 @@ func (s *PlannerSvc) GetSource(id uuid.UUID) (*api.Source, error) {
 }
 
 // GetSources retrieves a list of all available sources
-func (s *PlannerSvc) GetSources() (*api.SourceList, error) {
+func (s *PlannerSvc) GetSources() (*v1alpha1.SourceList, error) {
 	zap.S().Info("[PlannerService] Get sources")
 	res, err := s.api.GetRequest(apiV1SourcesPath)
 	if err != nil {
@@ -161,7 +162,9 @@ func (s *PlannerSvc) RemoveSources() error {
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer func() {
+		_ = res.Body.Close()
+	}()
 
 	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to delete sources. response status code: %d", res.StatusCode)
@@ -187,7 +190,9 @@ func (s *PlannerSvc) UpdateSource(sourceID, agentID uuid.UUID, inventory *v1alph
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer func() {
+		_ = res.Body.Close()
+	}()
 
 	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to update source with uuid: %s. "+

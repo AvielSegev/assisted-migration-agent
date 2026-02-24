@@ -111,7 +111,7 @@ var _ = Describe("CollectorService", func() {
 			sched.Close()
 		}
 		if db != nil {
-			db.Close()
+			_ = db.Close()
 		}
 	})
 

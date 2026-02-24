@@ -26,7 +26,9 @@ func (h *Handler) PostVddk(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	defer dst.Close()
+	defer func() {
+		_ = dst.Close()
+	}()
 
 	hash := md5.New()
 	written, err := io.Copy(io.MultiWriter(dst, hash), c.Request.Body)

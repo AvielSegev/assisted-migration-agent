@@ -55,7 +55,9 @@ func (c *Client) UpdateAgentStatus(ctx context.Context, agentID uuid.UUID, sourc
 		return err
 	}
 	if resp != nil {
-		defer resp.Body.Close()
+		defer func() {
+			_ = resp.Body.Close()
+		}()
 	}
 
 	switch {
@@ -86,7 +88,9 @@ func (c *Client) UpdateSourceStatus(ctx context.Context, sourceID, agentID uuid.
 		return err
 	}
 	if resp != nil {
-		defer resp.Body.Close()
+		defer func() {
+			_ = resp.Body.Close()
+		}()
 	}
 
 	switch {

@@ -154,7 +154,7 @@ func NewRunCommand(cfg *config.Configuration) *cobra.Command {
 			collectorSrv.Stop()
 			_ = inspectorSrv.Stop(context.Background())
 			sched.Close()
-			store.Close()
+			_ = store.Close()
 
 			zap.S().Info("services and scheduler closed")
 

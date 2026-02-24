@@ -38,7 +38,7 @@ var _ = Describe("PostVddk", func() {
 	})
 
 	AfterEach(func() {
-		os.RemoveAll(tempDir)
+		_ = os.RemoveAll(tempDir)
 	})
 
 	// Given a valid VDDK tarball content
