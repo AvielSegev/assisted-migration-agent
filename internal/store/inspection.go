@@ -75,7 +75,9 @@ func (s *InspectionStore) List(ctx context.Context, filter *InspectionQueryFilte
 	if err != nil {
 		return nil, fmt.Errorf("executing list query: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	result := make(map[string]models.InspectionStatus)
 	for rows.Next() {

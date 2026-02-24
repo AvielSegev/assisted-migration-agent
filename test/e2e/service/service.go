@@ -5,8 +5,8 @@ import (
 
 	"go.uber.org/zap"
 
-	. "github.com/kubev2v/assisted-migration-agent/test/e2e/model"
-	. "github.com/kubev2v/assisted-migration-agent/test/e2e/utils"
+	e2eModel "github.com/kubev2v/assisted-migration-agent/test/e2e/model"
+	e2eUtils "github.com/kubev2v/assisted-migration-agent/test/e2e/utils"
 )
 
 const (
@@ -27,11 +27,11 @@ type PlannerSvc struct {
 
 // DefaultPlannerService initializes a planner service using default *auth.User credentials
 func DefaultPlannerService() (*PlannerSvc, error) {
-	return NewPlannerService(DefaultUserAuth())
+	return NewPlannerService(e2eUtils.DefaultUserAuth())
 }
 
 // NewPlannerService initializes the planner service with custom *auth.User credentials
-func NewPlannerService(cred *User) (*PlannerSvc, error) {
+func NewPlannerService(cred *e2eModel.User) (*PlannerSvc, error) {
 	zap.S().Info("Initializing PlannerService...")
 	serviceApi, err := NewServiceApi(cred)
 	if err != nil {

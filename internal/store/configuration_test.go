@@ -38,7 +38,7 @@ var _ = Describe("ConfigurationStore", func() {
 
 	AfterEach(func() {
 		if db != nil {
-			db.Close()
+			_ = db.Close()
 		}
 	})
 

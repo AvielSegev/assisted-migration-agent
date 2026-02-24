@@ -10,15 +10,15 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	. "github.com/kubev2v/migration-planner/test/e2e"
+	"github.com/kubev2v/migration-planner/test/e2e"
 
-	. "github.com/kubev2v/assisted-migration-agent/test/e2e/model"
+	e2eModel "github.com/kubev2v/assisted-migration-agent/test/e2e/model"
 )
 
 // GetToken retrieves the private key from the specified path, parses it, and then generates a token
 // for the given credentials using the private key. Returns the token or an error.
-func GetToken(credentials *User) (string, error) {
-	privateKeyString, err := os.ReadFile(PrivateKeyPath)
+func GetToken(credentials *e2eModel.User) (string, error) {
+	privateKeyString, err := os.ReadFile(e2e.PrivateKeyPath)
 	if err != nil {
 		return "", fmt.Errorf("error, unable to read the private key: %v", err)
 	}
@@ -39,8 +39,8 @@ func GetToken(credentials *User) (string, error) {
 }
 
 // UserAuth returns an auth.User object with the provided username and organization.
-func UserAuth(user string, org string, emailDomain string) *User {
-	return &User{
+func UserAuth(user string, org string, emailDomain string) *e2eModel.User {
+	return &e2eModel.User{
 		Username:     user,
 		Organization: org,
 		EmailDomain:  emailDomain,
@@ -48,8 +48,8 @@ func UserAuth(user string, org string, emailDomain string) *User {
 }
 
 // DefaultUserAuth returns an auth.User object with the default username and organization.
-func DefaultUserAuth() *User {
-	return UserAuth(DefaultUsername, DefaultOrganization, DefaultEmailDomain)
+func DefaultUserAuth() *e2eModel.User {
+	return UserAuth(e2e.DefaultUsername, e2e.DefaultOrganization, e2e.DefaultEmailDomain)
 }
 
 func ParsePrivateKey(content string) (*rsa.PrivateKey, error) {

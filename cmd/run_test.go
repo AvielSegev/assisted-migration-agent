@@ -160,21 +160,21 @@ var _ = Describe("Run Command", func() {
 	Describe("Environment Variable Binding", func() {
 		AfterEach(func() {
 			// Clean up environment variables
-			os.Unsetenv("AGENT_SERVER_HTTP_PORT")
-			os.Unsetenv("AGENT_SERVER_STATICS_FOLDER")
-			os.Unsetenv("AGENT_SERVER_MODE")
-			os.Unsetenv("AGENT_MODE")
-			os.Unsetenv("AGENT_AGENT_ID")
-			os.Unsetenv("AGENT_SOURCE_ID")
-			os.Unsetenv("AGENT_VERSION")
-			os.Unsetenv("AGENT_NUM_WORKERS")
-			os.Unsetenv("AGENT_DATA_FOLDER")
-			os.Unsetenv("AGENT_OPA_POLICIES_FOLDER")
-			os.Unsetenv("AGENT_LEGACY_STATUS_ENABLED")
-			os.Unsetenv("AGENT_AUTHENTICATION_ENABLED")
-			os.Unsetenv("AGENT_AUTHENTICATION_JWT_FILEPATH")
-			os.Unsetenv("AGENT_CONSOLE_URL")
-			os.Unsetenv("AGENT_CONSOLE_UPDATE_INTERVAL")
+			_ = os.Unsetenv("AGENT_SERVER_HTTP_PORT")
+			_ = os.Unsetenv("AGENT_SERVER_STATICS_FOLDER")
+			_ = os.Unsetenv("AGENT_SERVER_MODE")
+			_ = os.Unsetenv("AGENT_MODE")
+			_ = os.Unsetenv("AGENT_AGENT_ID")
+			_ = os.Unsetenv("AGENT_SOURCE_ID")
+			_ = os.Unsetenv("AGENT_VERSION")
+			_ = os.Unsetenv("AGENT_NUM_WORKERS")
+			_ = os.Unsetenv("AGENT_DATA_FOLDER")
+			_ = os.Unsetenv("AGENT_OPA_POLICIES_FOLDER")
+			_ = os.Unsetenv("AGENT_LEGACY_STATUS_ENABLED")
+			_ = os.Unsetenv("AGENT_AUTHENTICATION_ENABLED")
+			_ = os.Unsetenv("AGENT_AUTHENTICATION_JWT_FILEPATH")
+			_ = os.Unsetenv("AGENT_CONSOLE_URL")
+			_ = os.Unsetenv("AGENT_CONSOLE_UPDATE_INTERVAL")
 		})
 
 		// Given server environment variables are set
@@ -182,9 +182,9 @@ var _ = Describe("Run Command", func() {
 		// Then the server configuration should be read from environment
 		It("should read server configuration from environment variables", func() {
 			// Arrange
-			os.Setenv("AGENT_SERVER_HTTP_PORT", "9001")
-			os.Setenv("AGENT_SERVER_STATICS_FOLDER", "/env/statics")
-			os.Setenv("AGENT_SERVER_MODE", "prod")
+			_ = os.Setenv("AGENT_SERVER_HTTP_PORT", "9001")
+			_ = os.Setenv("AGENT_SERVER_STATICS_FOLDER", "/env/statics")
+			_ = os.Setenv("AGENT_SERVER_MODE", "prod")
 
 			cfg = config.NewConfigurationWithOptionsAndDefaults()
 			cmd := NewRunCommand(cfg)
@@ -206,14 +206,14 @@ var _ = Describe("Run Command", func() {
 		// Then the agent configuration should be read from environment
 		It("should read agent configuration from environment variables", func() {
 			// Arrange
-			os.Setenv("AGENT_MODE", "connected")
-			os.Setenv("AGENT_AGENT_ID", "11111111-1111-1111-1111-111111111111")
-			os.Setenv("AGENT_SOURCE_ID", "22222222-2222-2222-2222-222222222222")
-			os.Setenv("AGENT_VERSION", "v2.0.0")
-			os.Setenv("AGENT_NUM_WORKERS", "10")
-			os.Setenv("AGENT_DATA_FOLDER", "/env/data")
-			os.Setenv("AGENT_OPA_POLICIES_FOLDER", "/env/policies")
-			os.Setenv("AGENT_LEGACY_STATUS_ENABLED", "false")
+			_ = os.Setenv("AGENT_MODE", "connected")
+			_ = os.Setenv("AGENT_AGENT_ID", "11111111-1111-1111-1111-111111111111")
+			_ = os.Setenv("AGENT_SOURCE_ID", "22222222-2222-2222-2222-222222222222")
+			_ = os.Setenv("AGENT_VERSION", "v2.0.0")
+			_ = os.Setenv("AGENT_NUM_WORKERS", "10")
+			_ = os.Setenv("AGENT_DATA_FOLDER", "/env/data")
+			_ = os.Setenv("AGENT_OPA_POLICIES_FOLDER", "/env/policies")
+			_ = os.Setenv("AGENT_LEGACY_STATUS_ENABLED", "false")
 
 			cfg = config.NewConfigurationWithOptionsAndDefaults()
 			cmd := NewRunCommand(cfg)
@@ -240,8 +240,8 @@ var _ = Describe("Run Command", func() {
 		// Then the authentication configuration should be read from environment
 		It("should read authentication configuration from environment variables", func() {
 			// Arrange
-			os.Setenv("AGENT_AUTHENTICATION_ENABLED", "true")
-			os.Setenv("AGENT_AUTHENTICATION_JWT_FILEPATH", "/env/jwt")
+			_ = os.Setenv("AGENT_AUTHENTICATION_ENABLED", "true")
+			_ = os.Setenv("AGENT_AUTHENTICATION_JWT_FILEPATH", "/env/jwt")
 
 			cfg = config.NewConfigurationWithOptionsAndDefaults()
 			cmd := NewRunCommand(cfg)
@@ -262,8 +262,8 @@ var _ = Describe("Run Command", func() {
 		// Then the console configuration should be read from environment
 		It("should read console configuration from environment variables", func() {
 			// Arrange
-			os.Setenv("AGENT_CONSOLE_URL", "https://env.console.com")
-			os.Setenv("AGENT_CONSOLE_UPDATE_INTERVAL", "30s")
+			_ = os.Setenv("AGENT_CONSOLE_URL", "https://env.console.com")
+			_ = os.Setenv("AGENT_CONSOLE_UPDATE_INTERVAL", "30s")
 
 			cfg = config.NewConfigurationWithOptionsAndDefaults()
 			cmd := NewRunCommand(cfg)
@@ -284,8 +284,8 @@ var _ = Describe("Run Command", func() {
 		// Then CLI flags should take precedence over environment variables
 		It("should prefer command line flags over environment variables", func() {
 			// Arrange
-			os.Setenv("AGENT_SERVER_HTTP_PORT", "9001")
-			os.Setenv("AGENT_MODE", "connected")
+			_ = os.Setenv("AGENT_SERVER_HTTP_PORT", "9001")
+			_ = os.Setenv("AGENT_MODE", "connected")
 
 			cfg = config.NewConfigurationWithOptionsAndDefaults()
 			cmd := NewRunCommand(cfg)

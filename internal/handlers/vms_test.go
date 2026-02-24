@@ -756,7 +756,7 @@ var _ = Describe("VMs Handlers Integration", func() {
 
 	AfterEach(func() {
 		if db != nil {
-			db.Close()
+			_ = db.Close()
 		}
 	})
 

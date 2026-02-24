@@ -35,7 +35,7 @@ var _ = Describe("InventoryStore", func() {
 
 	AfterEach(func() {
 		if db != nil {
-			db.Close()
+			_ = db.Close()
 		}
 	})
 

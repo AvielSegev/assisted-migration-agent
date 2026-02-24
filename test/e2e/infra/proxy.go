@@ -114,7 +114,7 @@ func (p *Proxy) handler() http.Handler {
 			"path", r.URL.Path,
 			"status", recorder.statusCode,
 			"request_body", string(requestBody),
-			"response_body", string(recorder.body.Bytes()),
+			"response_body", recorder.body.String(),
 		)
 
 		if p.requests == nil {

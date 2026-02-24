@@ -11,8 +11,8 @@ import (
 
 	"github.com/kubev2v/assisted-migration-agent/test/e2e/infra"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	ginkgo "github.com/onsi/ginkgo/v2"
+	gomega "github.com/onsi/gomega"
 	"go.uber.org/zap"
 )
 
@@ -72,7 +72,9 @@ func main() {
 		log.Fatalf("failed to initialize logger: %v", err)
 	}
 	zap.ReplaceGlobals(logger)
-	defer logger.Sync()
+	defer func() {
+		_ = logger.Sync()
+	}()
 
 	if err := cfg.Validate(); err != nil {
 		log.Fatalf("failed to validate configuration: %v", err)
@@ -89,8 +91,8 @@ func main() {
 		infraManager = infra.NewVMInfraManager()
 	}
 
-	RegisterFailHandler(Fail)
-	if !RunSpecs(&testing.T{}, "E2E Suite") {
+	gomega.RegisterFailHandler(ginkgo.Fail)
+	if !ginkgo.RunSpecs(&testing.T{}, "E2E Suite") {
 		os.Exit(1)
 	}
 }
