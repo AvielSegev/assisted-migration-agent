@@ -921,22 +921,22 @@ var _ = ginkgo.Describe("Agent e2e tests", ginkgo.Ordered, func() {
 				}, 60*time.Second, 2*time.Second).Should(gm.Equal("collected"))
 
 				// Get inventory from agent
-				inventory, err := agentSvc.Inventory()
+				updateInv, err := agentSvc.Inventory()
 				gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to get inventory")
-				gm.Expect(inventory).ToNot(gm.BeNil(), "gm.Expected inventory to be available")
-				ginkgo.GinkgoWriter.Printf("Collected inventory with vcenter_id: %s\n", inventory.VcenterId)
+				gm.Expect(updateInv).ToNot(gm.BeNil(), "expected inventory to be available")
+				ginkgo.GinkgoWriter.Printf("Collected inventory with vcenter_id: %s\n", updateInv.Inventory.VcenterId)
 
 				// Manually upload inventory to backend
 				ginkgo.GinkgoWriter.Println("Manually uploading inventory to backend...")
-				err = userSvc.UpdateSource(sourceID, openapi_types.UUID(uuid.MustParse(agentID)), inventory)
+				err = userSvc.UpdateSource(sourceID, updateInv)
 				gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to upload inventory to backend")
 
 				// Assert - Verify inventory was uploaded
 				source, err := userSvc.GetSource(sourceID)
 				gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to get source")
 				ginkgo.GinkgoWriter.Printf("Source inventory after upload: vcenter_id=%s\n", source.Inventory.VcenterId)
-				gm.Expect(source.Inventory).ToNot(gm.BeNil(), "gm.Expected inventory to be populated")
-				gm.Expect(source.Inventory.VcenterId).To(gm.Equal(inventory.VcenterId), "gm.Expected vcenter_id to match")
+				gm.Expect(source.Inventory).ToNot(gm.BeNil(), "expected inventory to be populated")
+				gm.Expect(source.Inventory.VcenterId).To(gm.Equal(updateInv.Inventory.VcenterId), "expected vcenter_id to match")
 			})
 
 			// Given an agent in connected mode with vcsim running

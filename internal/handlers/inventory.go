@@ -1,17 +1,23 @@
 package handlers
 
 import (
+	"encoding/json"
+	"fmt"
+	v1 "github.com/kubev2v/assisted-migration-agent/api/v1"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
+
+	"github.com/kubev2v/migration-planner/api/v1alpha1"
 
 	srvErrors "github.com/kubev2v/assisted-migration-agent/pkg/errors"
 )
 
 // GetInventory returns the collected inventory
 // (GET /inventory)
-func (h *Handler) GetInventory(c *gin.Context) {
+func (h *Handler) GetInventory(c *gin.Context, params v1.GetInventoryParams) {
 	inv, err := h.inventorySrv.GetInventory(c.Request.Context())
 	if err != nil {
 		if srvErrors.IsResourceNotFoundError(err) {
@@ -23,5 +29,34 @@ func (h *Handler) GetInventory(c *gin.Context) {
 		return
 	}
 
-	c.Data(http.StatusOK, "application/json", inv.Data)
+	var inventory v1alpha1.Inventory
+	if err := json.Unmarshal(inv.Data, &inventory); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Errorf("error unmarshalling inventory: %w", err)})
+		return
+	}
+
+	withAgentId := false
+	if params.WithAgentId != nil {
+		withAgentId = *params.WithAgentId
+	}
+
+	// Return inventory without agent ID
+	if !withAgentId {
+		c.JSON(http.StatusOK, inventory)
+		return
+	}
+
+	// With Agent ID
+	agentID, err := uuid.Parse(h.cfg.Agent.ID)
+	if err != nil {
+		zap.S().Named("collector_handler").Errorw("invalid agent id in config", "agent_id", h.cfg.Agent.ID, "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Errorf("invalid agent id: %w", err)})
+		return
+	}
+
+	payload := &v1alpha1.UpdateInventory{
+		Inventory: inventory,
+		AgentId:   agentID,
+	}
+	c.JSON(http.StatusOK, payload)
 }

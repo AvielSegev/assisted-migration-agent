@@ -189,7 +189,7 @@ func (a *AgentSvc) GetCollectorStatus() (*CollectorStatus, error) {
 }
 
 // Inventory retrieves the inventory data collected by the agent
-func (a *AgentSvc) Inventory() (*v1alpha1.Inventory, error) {
+func (a *AgentSvc) Inventory() (*v1alpha1.UpdateInventory, error) {
 	req, err := http.NewRequest(http.MethodGet, a.baseURL+"/api/v1/inventory", nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
@@ -211,7 +211,7 @@ func (a *AgentSvc) Inventory() (*v1alpha1.Inventory, error) {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	var inventory v1alpha1.Inventory
+	var inventory v1alpha1.UpdateInventory
 	if err := json.NewDecoder(resp.Body).Decode(&inventory); err != nil {
 		return nil, fmt.Errorf("decoding response: %w", err)
 	}
