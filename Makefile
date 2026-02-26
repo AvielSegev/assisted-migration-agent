@@ -1,4 +1,4 @@
-.PHONY: generate generate.proto build build.e2e e2e e2e.container e2e.vm e2e.container.clean run container.run container.stop help tidy tidy-check clean lint format check-format check-generate validate-all image setup-opa-policies clean-opa-policies
+.PHONY: generate generate.proto build build.e2e e2e e2e.container e2e.vm e2e.container.clean run container.run container.stop help tidy tidy-check clean lint format check-format check-generate validate-all image setup-opa-policies clean-opa-policies test test.fuzz
 
 PODMAN ?= podman
 GIT_COMMIT=$(shell git rev-list -1 HEAD --abbrev-commit)
@@ -45,6 +45,7 @@ help:
 	@echo "    check-format:    check that formatting does not introduce changes"
 	@echo "    tidy:            tidy go mod"
 	@echo "    tidy-check:      check that go.mod and go.sum are tidy"
+	@echo "    test.fuzz:       run fuzz tests (default 30s, override with FUZZ_TIME=1m)"
 	@echo "    setup-opa-policies: download OPA policies from Forklift project"
 	@echo "    clean-opa-policies: clean OPA policies directory"
 
@@ -281,12 +282,19 @@ $(GINKGO):
 	@go install -v github.com/onsi/ginkgo/v2/ginkgo@v2.22.0
 	@echo "✅ 'ginkgo' installed successfully."
 
-.PHONY: test vcsim
+FUZZ_TIME ?= 30s
+
+.PHONY: test test.fuzz vcsim
 # Run unit tests using ginkgo
-test: $(GINKGO) vcsim
+test: $(GINKGO) vcsim test.fuzz
 	@echo "🧪 Running Unit tests..."
 	@$(GINKGO) -v --show-node-events $(UNIT_TEST_GINKGO_OPTIONS) $(UNIT_TEST_PACKAGES)
 	@echo "✅ All Unit tests passed successfully."
+
+test.fuzz:
+	@echo "🧪 Running fuzz tests ($(FUZZ_TIME))..."
+	@go test ./pkg/filter/ -fuzz=FuzzParse -fuzztime=$(FUZZ_TIME)
+	@echo "✅ Fuzz tests passed."
 
 # Start vcsim container for testing
 vcsim:
