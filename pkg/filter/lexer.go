@@ -1,6 +1,9 @@
 package filter
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 type lexer struct {
 	src     []byte
@@ -164,7 +167,7 @@ func (l *lexer) Scan() (int, Token, string) {
 		val = string(chars)
 	default:
 		tok = illegal
-		val = "unexpected char"
+		val = fmt.Sprintf("unexpected character '%c'", ch)
 	}
 
 	return pos, tok, val
