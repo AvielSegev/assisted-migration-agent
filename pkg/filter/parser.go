@@ -139,7 +139,7 @@ func (p *parser) equality() Expression {
 		op = p.tok
 		p.next()
 	default:
-		panic(p.errorf("expected operator instead of %s", p.tok))
+		panic(p.errorf(p.pos, "expected operator instead of %s", p.tok))
 	}
 
 	right := p.value()
@@ -193,7 +193,7 @@ func (p *parser) value() Expression {
 	case regexLit:
 		expr = newRegexExpression(p.pos, p.val)
 	default:
-		panic(p.errorf("expected value instead of %s", p.tok))
+		panic(p.errorf(p.pos, "expected value instead of %s", p.tok))
 	}
 
 	p.next()
@@ -202,9 +202,10 @@ func (p *parser) value() Expression {
 
 // next parses the next token into p.tok.
 func (p *parser) next() {
-	p.pos, p.tok, p.val = p.lexer.Scan()
-	if p.tok == illegal {
-		panic(p.errorf("%s", p.val))
+	pos, tok, val := p.lexer.Scan()
+	p.pos, p.tok, p.val = pos, tok, val
+	if tok == illegal {
+		panic(p.errorf(pos, "%s", val))
 	}
 }
 
@@ -216,12 +217,12 @@ func (p *parser) matches(tokens ...Token) bool {
 // expect panics if current token is not the expected token.
 func (p *parser) expect(tok Token) {
 	if p.tok != tok {
-		panic(p.errorf("expected %s instead of %s", tok, p.tok))
+		panic(p.errorf(p.pos, "expected %s instead of %s", tok, p.tok))
 	}
 }
 
-// errorf formats an error with the current position.
-func (p *parser) errorf(format string, args ...any) error {
+// errorf formats an error with the given position.
+func (p *parser) errorf(pos int, format string, args ...any) error {
 	message := fmt.Sprintf(format, args...)
-	return ParseError{p.pos, message}
+	return ParseError{pos, message}
 }
