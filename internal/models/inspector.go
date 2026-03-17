@@ -25,3 +25,6 @@ type InspectorStatus struct {
 	State InspectorState
 	Error error
 }
+
+// InspectorResult is the shared result struct threaded through inspector work units.
+type InspectorResult struct{}

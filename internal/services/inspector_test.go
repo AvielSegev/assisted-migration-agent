@@ -142,7 +142,7 @@ var _ = Describe("InspectorService", func() {
 		})
 	})
 
-	Describe("Add VMs to inspection queue", func() {
+	Describe("Add VMs to inspectionSvc queue", func() {
 
 		Context("when inspector is not started", func() {
 			It("should return InspectorNotRunningError when trying to add VMs", func() {
@@ -173,7 +173,7 @@ var _ = Describe("InspectorService", func() {
 				}).Should(Equal(models.InspectorStateRunning))
 			})
 
-			It("should add VMs to inspection table with pending status", func() {
+			It("should add VMs to inspectionSvc table with pending status", func() {
 				err := srv.Add([]string{"vm-1", "vm-2", "vm-3"})
 				Expect(err).NotTo(HaveOccurred())
 
@@ -217,7 +217,7 @@ var _ = Describe("InspectorService", func() {
 			Expect(status.State).To(Equal(models.InspectionStateNotFound))
 		})
 
-		It("should return VM inspection status after adding", func() {
+		It("should return VM inspectionSvc status after adding", func() {
 			// Insert an initial VM and start inspector
 			insertVM("vm-0", "test-vm-0")
 
@@ -282,7 +282,7 @@ var _ = Describe("InspectorService", func() {
 					return srv.GetStatus().State
 				}).Should(Equal(models.InspectorStateRunning))
 
-				// Add VMs to the inspection queue
+				// Add VMs to the inspectionSvc queue
 				err = srv.Add([]string{"vm-1", "vm-2", "vm-3"})
 				Expect(err).NotTo(HaveOccurred())
 			})
@@ -349,7 +349,7 @@ var _ = Describe("InspectorService", func() {
 	})
 
 	Describe("Start", func() {
-		It("should complete inspection successfully for single VM", func() {
+		It("should complete inspectionSvc successfully for single VM", func() {
 			builder := newMockInspectorWorkBuilder()
 			srv = services.NewInspectorService().WithWorkUnitsBuilder(builder.builder())
 
@@ -369,7 +369,7 @@ var _ = Describe("InspectorService", func() {
 			Expect(status.State).To(Equal(models.InspectionStateCompleted))
 		})
 
-		It("should complete inspection successfully for multiple VMs", func() {
+		It("should complete inspectionSvc successfully for multiple VMs", func() {
 			builder := newMockInspectorWorkBuilder()
 			srv = services.NewInspectorService().WithWorkUnitsBuilder(builder.builder())
 
@@ -426,8 +426,8 @@ var _ = Describe("InspectorService", func() {
 			Expect(status.Error).NotTo(BeNil())
 		})
 
-		It("should mark VM as error when inspection fails and continue with next VM", func() {
-			builder := newMockInspectorWorkBuilder().withVmError("vm-1", errors.New("inspection failed"))
+		It("should mark VM as error when inspectionSvc fails and continue with next VM", func() {
+			builder := newMockInspectorWorkBuilder().withVmError("vm-1", errors.New("inspectionSvc failed"))
 			srv = services.NewInspectorService().WithWorkUnitsBuilder(builder.builder())
 
 			err := srv.Start(ctx, []string{"vm-1", "vm-2"}, getVCenterCredentials())
@@ -449,7 +449,7 @@ var _ = Describe("InspectorService", func() {
 			Expect(status2.State).To(Equal(models.InspectionStateCompleted))
 		})
 
-		It("should clear previous inspection data on new start", func() {
+		It("should clear previous inspectionSvc data on new start", func() {
 			builder := newMockInspectorWorkBuilder()
 			srv = services.NewInspectorService().WithWorkUnitsBuilder(builder.builder())
 
