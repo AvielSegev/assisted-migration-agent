@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"sync"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/vmware/govmomi"
 
-	"github.com/kubev2v/assisted-migration-agent/internal/store"
 	"github.com/kubev2v/assisted-migration-agent/pkg/vmware"
 
 	"go.uber.org/zap"
@@ -20,10 +18,16 @@ import (
 	"github.com/kubev2v/assisted-migration-agent/pkg/scheduler"
 )
 
+type (
+	InspectionPipeline    = WorkPipeline[models.InspectionStatus, models.InspectionResult]
+	InspectionWorkBuilder func(id string) []models.WorkUnit[models.InspectionStatus, models.InspectionResult]
+)
+
 type InspectorService struct {
-	scheduler *scheduler.Scheduler[any]
-	store     *store.Store
-	builder   models.InspectorWorkBuilder
+	scheduler *scheduler.Scheduler[models.InspectionResult]
+
+	buildFn   InspectionWorkBuilder
+	pipelines map[string]*InspectionPipeline
 
 	status models.InspectorStatus
 
@@ -34,14 +38,14 @@ type InspectorService struct {
 	vsphereClient *govmomi.Client
 	cancel        context.CancelFunc
 	cred          *models.Credentials
+
+	operator vmware.VMOperator // needs to be initialized
 }
 
 // NewInspectorService creates a new InspectorService with the default vmware builder.
-func NewInspectorService(s *scheduler.Scheduler[any], store *store.Store) *InspectorService {
+func NewInspectorService() *InspectorService {
 	return &InspectorService{
-		scheduler: s,
-		status:    models.InspectorStatus{State: models.InspectorStateReady},
-		store:     store,
+		status: models.InspectorStatus{State: models.InspectorStateReady},
 	}
 }
 
@@ -55,11 +59,27 @@ func (c *InspectorService) GetStatus() models.InspectorStatus {
 
 // GetVmStatus returns the current vm inspection status.
 func (c *InspectorService) GetVmStatus(ctx context.Context, id string) (models.InspectionStatus, error) {
-	s, err := c.store.Inspection().Get(ctx, id)
-	if err != nil {
-		return models.InspectionStatus{}, err
+	c.mu.Lock()
+	pipeline, found := c.pipelines[id]
+	c.mu.Unlock()
+
+	if !found {
+		return models.InspectionStatus{State: models.InspectionStateNotFound}, nil
 	}
-	return *s, nil
+
+	state := pipeline.State()
+	if state.Err != nil {
+		if !errors.Is(state.Err, errPipelineStopped) {
+			return models.InspectionStatus{State: models.InspectionStateCanceled, Error: state.Err}, nil
+		}
+		return models.InspectionStatus{State: models.InspectionStateError, Error: state.Err}, nil
+	}
+
+	if pipeline.IsRunning() {
+		return state.State, nil
+	}
+
+	return models.InspectionStatus{State: models.InspectionStateCompleted}, nil
 }
 
 func (c *InspectorService) Start(ctx context.Context, vmIDs []string, cred *models.Credentials) error {
@@ -81,19 +101,22 @@ func (c *InspectorService) Start(ctx context.Context, vmIDs []string, cred *mode
 
 	c.vsphereClient = vClient
 	c.cred = cred
-	if c.builder == nil {
-		c.builder = vmware.NewInspectorWorkBuilder(vmware.NewVMManager(vClient, cred.Username))
+
+	sched := scheduler.NewScheduler[models.InspectionResult](1)
+	c.scheduler = sched
+
+	if c.buildFn == nil {
+		c.buildFn = c.buildInspectionWorkUnits
 	}
 
-	if err := c.store.Inspection().DeleteAll(ctx); err != nil {
-		c.setErrorStatus(err)
-		return fmt.Errorf("failed to clear vms inspection table: %w", err)
+	c.pipelines = make(map[string]*InspectionPipeline)
+	for _, id := range vmIDs {
+		c.mu.Lock()
+		c.pipelines[id] = c.startVmPipeline(id)
+		c.mu.Unlock()
 	}
 
-	if err := c.store.Inspection().Add(ctx, vmIDs, models.InspectionStatePending); err != nil {
-		c.setErrorStatus(err)
-		return fmt.Errorf("failed to init inspection table: %w", err)
-	}
+	c.setState(models.InspectorStateRunning)
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	c.cancel = cancel
@@ -104,21 +127,38 @@ func (c *InspectorService) Start(ctx context.Context, vmIDs []string, cred *mode
 	return nil
 }
 
-func (c *InspectorService) Add(ctx context.Context, vmIDs []string) error {
+func (c *InspectorService) startVmPipeline(id string) *InspectionPipeline {
+	pipeline := NewWorkPipeline(models.InspectionStatus{State: models.InspectionStatePending}, c.scheduler, c.buildFn(id))
+	if err := pipeline.Start(); err != nil {
+		c.pipelines[id].state = WorkPipelineStatus[models.InspectionStatus, models.InspectionResult]{
+			State: models.InspectionStatus{State: models.InspectionStateError, Error: err},
+			Err:   err,
+		}
+	}
+
+	return pipeline
+}
+
+func (c *InspectorService) Add(vmIDs []string) error {
 	if !c.IsBusy() {
 		return srvErrors.NewInspectorNotRunningError()
 	}
 
 	if c.GetStatus().State == models.InspectorStateCanceling {
-		return fmt.Errorf("inspector already canceling")
+		return fmt.Errorf("inspector canceling works")
 	}
 
 	if len(vmIDs) == 0 {
 		return fmt.Errorf("vmIDs is empty")
 	}
 
-	if err := c.store.Inspection().Add(ctx, vmIDs, models.InspectionStatePending); err != nil {
-		return fmt.Errorf("failed to add VMs to inspection queue: %w", err)
+	for _, id := range vmIDs {
+		c.mu.Lock()
+		_, found := c.pipelines[id]
+		if !found {
+			c.pipelines[id] = c.startVmPipeline(id)
+		}
+		c.mu.Unlock()
 	}
 
 	return nil
@@ -161,17 +201,25 @@ func (c *InspectorService) CancelVmsInspection(ctx context.Context, vmIDs ...str
 		return srvErrors.NewInspectorNotRunningError()
 	}
 
-	filter := store.NewInspectionUpdateFilter().ByStatus(models.InspectionStatePending)
-
-	if len(vmIDs) > 0 {
-		filter = filter.ByVmIDs(vmIDs...)
+	c.mu.Lock()
+	ids := make([]string, 0, len(c.pipelines))
+	if len(vmIDs) == 0 {
+		for id := range c.pipelines {
+			ids = append(ids, id)
+		}
+	} else {
+		ids = append(ids, vmIDs...)
 	}
+	pipelines := make([]*InspectionPipeline, 0, len(ids))
+	for _, id := range ids {
+		if p, ok := c.pipelines[id]; ok {
+			pipelines = append(pipelines, p)
+		}
+	}
+	c.mu.Unlock()
 
-	err := c.store.Inspection().Update(ctx, filter, models.InspectionStatus{
-		State: models.InspectionStateCanceled,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to update inspection table: %w", err)
+	for _, p := range pipelines {
+		p.Stop()
 	}
 
 	return nil
@@ -186,109 +234,151 @@ func (c *InspectorService) IsBusy() bool {
 	}
 }
 
-func (c *InspectorService) WithBuilder(builder models.InspectorWorkBuilder) *InspectorService {
-	c.builder = builder
+func (c *InspectorService) WithWorkUnitsBuilder(builder InspectionWorkBuilder) *InspectorService {
+	c.buildFn = builder
 	return c
+}
+
+func (c *InspectorService) buildInspectionWorkUnits(id string) []models.WorkUnit[models.InspectionStatus, models.InspectionResult] {
+	return []models.WorkUnit[models.InspectionStatus, models.InspectionResult]{
+		{
+			Status: func() models.InspectionStatus {
+				return models.InspectionStatus{State: models.InspectionStateRunning}
+			},
+			Work: func(ctx context.Context, result models.InspectionResult) (models.InspectionResult, error) {
+				err := c.validate(ctx, id)
+				return result, err
+			},
+		},
+		{
+			Status: func() models.InspectionStatus {
+				return models.InspectionStatus{State: models.InspectionStateRunning}
+			},
+			Work: func(ctx context.Context, result models.InspectionResult) (models.InspectionResult, error) {
+				err := c.createSnapshot(ctx, id)
+				return result, err
+			},
+		},
+		{
+			Status: func() models.InspectionStatus {
+				return models.InspectionStatus{State: models.InspectionStateRunning}
+			},
+			Work: func(ctx context.Context, result models.InspectionResult) (models.InspectionResult, error) {
+				err := c.inspect(id)
+				return result, err
+			},
+		},
+		{
+			Status: func() models.InspectionStatus {
+				return models.InspectionStatus{State: models.InspectionStateRunning}
+			},
+			Work: func(ctx context.Context, result models.InspectionResult) (models.InspectionResult, error) {
+				err := c.save(ctx, id)
+				return result, err
+			},
+		},
+		{
+			Status: func() models.InspectionStatus {
+				return models.InspectionStatus{State: models.InspectionStateRunning}
+			},
+			Work: func(ctx context.Context, result models.InspectionResult) (models.InspectionResult, error) {
+				err := c.removeSnapshot(ctx, id)
+				return result, err
+			},
+		},
+	}
+}
+
+func (c *InspectorService) validate(ctx context.Context, id string) error {
+	return c.operator.ValidatePrivileges(ctx, id, models.RequiredPrivileges)
+}
+
+func (c *InspectorService) createSnapshot(ctx context.Context, id string) error {
+	zap.S().Named("inspector_service").Infow("creating VM snapshot", "vmId", id)
+	req := vmware.CreateSnapshotRequest{
+		VmId:         id,
+		SnapshotName: models.InspectionSnapshotName,
+		Description:  "",
+		Memory:       false,
+		Quiesce:      false,
+	}
+
+	if err := c.operator.CreateSnapshot(ctx, req); err != nil {
+		zap.S().Named("inspector_service").Errorw("failed to create VM snapshot", "vmId", id, "error", err)
+		return err
+	}
+
+	zap.S().Named("inspector_service").Infow("VM snapshot created", "vmId", id)
+
+	return nil
+}
+
+func (c *InspectorService) inspect(id string) error {
+	return nil
+}
+
+func (c *InspectorService) save(ctx context.Context, id string) error {
+	return nil
+}
+
+func (c *InspectorService) removeSnapshot(ctx context.Context, id string) error {
+
+	zap.S().Named("inspector_service").Infow("removing VM snapshot", "vmId", id)
+
+	removeSnapReq := vmware.RemoveSnapshotRequest{
+		VmId:         id,
+		SnapshotName: models.InspectionSnapshotName,
+		Consolidate:  true,
+	}
+
+	if err := c.operator.RemoveSnapshot(ctx, removeSnapReq); err != nil {
+		zap.S().Named("inspector_service").Errorw("failed to remove VM snapshot", "vmId", id, "error", err)
+		return err
+	}
+
+	zap.S().Named("inspector_service").Infow("VM snapshot removed", "vmId", id)
+
+	return nil
 }
 
 func (c *InspectorService) run(ctx context.Context, done chan any) {
 	defer close(done)
-	defer func() {
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
 
-		c.mu.Lock()
-		if c.done == done {
-			c.cancel = nil
-			c.done = nil
-		}
-		c.mu.Unlock()
+	c.mu.Lock()
+	pipelines := make([]*InspectionPipeline, 0, len(c.pipelines))
+	for _, p := range c.pipelines {
+		pipelines = append(pipelines, p)
+	}
+	c.mu.Unlock()
 
-		c.closeVsphereClient(cleanupCtx)
-	}()
-
-	c.setState(models.InspectorStateRunning)
-	zap.S().Debugw("inspector changed state", "state", c.GetStatus().State)
-
-	for {
-		id, err := c.store.Inspection().First(ctx)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				break // no more pending works
-			}
-			zap.S().Errorw("failed to get first pending inspection", "error", err)
-			c.setErrorStatus(err)
-			return
-		}
-
-		if err := c.setVmState(ctx, id, models.InspectionStateRunning); err != nil {
-			zap.S().Errorf("failed to set vm status to running: %v", err)
-			c.setErrorStatus(err)
-			return
-		}
-
-		if err := c.runVMWork(ctx, id, c.builder.Build(id)); err != nil {
-			var e *srvErrors.InspectorWorkError
-			switch {
-			case errors.As(err, &e):
-				if setError := c.setVmErrorStatus(ctx, id, err); setError != nil {
-					c.setErrorStatus(err)
-					return
-				}
-				continue // VM failed, move to next VM
-			case errors.Is(err, context.Canceled):
-				c.setState(models.InspectorStateCanceled)
+	for _, p := range pipelines {
+		for p.IsRunning() {
+			select {
+			case <-ctx.Done():
 				return
 			default:
-				c.setErrorStatus(err)
-				return
-			}
-		}
-
-		if err := c.setVmState(ctx, id, models.InspectionStateCompleted); err != nil {
-			zap.S().Errorf("failed to set vm status to completed: %v", err)
-			c.setErrorStatus(err)
-			return
-		}
-
-		zap.S().Debugw("VM inspection completed", "vmID", id)
-	}
-
-	c.setState(models.InspectorStateCompleted)
-	zap.S().Info("inspector finished work")
-}
-
-func (c *InspectorService) runVMWork(ctx context.Context, id string, units []models.InspectorWorkUnit) error {
-	for _, unit := range units {
-
-		future := c.scheduler.AddWork(func(ctx context.Context) (any, error) {
-			return unit.Work()(ctx)
-		})
-
-		select {
-		// Todo: handle the context done case. we may want to run some cleanup tasks
-		case <-ctx.Done():
-			future.Stop()
-			return context.Canceled
-
-		case result := <-future.C():
-			if result.Err != nil {
-				zap.S().Errorw("VM inspection failed", "vmID", id, "error", result.Err)
-				return srvErrors.NewInspectorWorkError("work finished with error: %s", result.Err.Error())
+				time.Sleep(10 * time.Millisecond)
 			}
 		}
 	}
-	return nil
-}
 
-func (c *InspectorService) closeVsphereClient(ctx context.Context) {
+	// All pipelines finished; set completed unless we were canceled
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.vsphereClient != nil {
-		_ = c.vsphereClient.Logout(ctx)
-		c.vsphereClient = nil
+	state := c.status.State
+	c.mu.Unlock()
+	if state == models.InspectorStateRunning {
+		c.setState(models.InspectorStateCompleted)
 	}
 }
+
+//func (c *InspectorService) closeVsphereClient(ctx context.Context) {
+//	c.mu.Lock()
+//	defer c.mu.Unlock()
+//	if c.vsphereClient != nil {
+//		_ = c.vsphereClient.Logout(ctx)
+//		c.vsphereClient = nil
+//	}
+//}
 
 func (c *InspectorService) setState(s models.InspectorState) {
 	c.mu.Lock()
@@ -305,24 +395,4 @@ func (c *InspectorService) setErrorStatus(err error) {
 		State: models.InspectorStateError,
 		Error: err,
 	}
-}
-
-func (c *InspectorService) setVmState(ctx context.Context, vmID string, s models.InspectionState) error {
-	if err := c.store.Inspection().Update(ctx, store.NewInspectionUpdateFilter().ByVmIDs(vmID),
-		models.InspectionStatus{State: s}); err != nil {
-		return fmt.Errorf("updating vm %s in store: %w", vmID, err)
-	}
-
-	return nil
-}
-
-func (c *InspectorService) setVmErrorStatus(ctx context.Context, vmID string, err error) error {
-	if err := c.store.Inspection().Update(ctx, store.NewInspectionUpdateFilter().ByVmIDs(vmID), models.InspectionStatus{
-		State: models.InspectionStateError,
-		Error: err,
-	}); err != nil {
-		return fmt.Errorf("updating vm %s in store: %w", vmID, err)
-	}
-
-	return nil
 }

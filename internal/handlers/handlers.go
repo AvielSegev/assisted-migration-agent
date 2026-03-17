@@ -36,7 +36,7 @@ type VMService interface {
 // InspectorService defines the interface for deep inspector operations.
 type InspectorService interface {
 	Start(ctx context.Context, vmIDs []string, cred *models.Credentials) error
-	Add(ctx context.Context, vmIDs []string) error
+	Add(vmIDs []string) error
 	GetStatus() models.InspectorStatus
 	GetVmStatus(ctx context.Context, id string) (models.InspectionStatus, error)
 	IsBusy() bool

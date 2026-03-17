@@ -57,12 +57,12 @@
 //   - Only one collection can be in progress at a time (returns CollectionInProgressError otherwise)
 //   - Once inventory is collected, the Collected state is terminal - subsequent Start calls are no-ops
 //   - Collection can be cancelled mid-execution via Stop, returning to Ready state
-//   - Work units are executed sequentially via a callback-free WorkPipeline (see pipeline.go)
-//   - The pipeline is pull-based: GetStatus reads pipeline.State() rather than receiving callbacks
-//   - The collector tolerates a stale pipeline — completed pipelines remain attached until
+//   - Work units are executed sequentially via a callback-free WorkPipeline (see pipelines.go)
+//   - The pipelines is pull-based: GetStatus reads pipeline.State() rather than receiving callbacks
+//   - The collector tolerates a stale pipelines — completed pipelines remain attached until
 //     replaced by a new Start() or detached by Stop()
 //   - GetStatus checks the database for inventory first (authoritative for Collected),
-//     then falls back to the pipeline state, then Ready
+//     then falls back to the pipelines state, then Ready
 //
 // Usage:
 //
@@ -104,7 +104,7 @@
 // The service implements:
 //   - Periodic status and inventory dispatching via a reusable WorkPipeline
 //   - SHA256 hash-based deduplication to avoid sending unchanged inventory
-//   - Two-phase run loop: process result → wait (with backoff) → restart pipeline.
+//   - Two-phase run loop: process result → wait (with backoff) → restart pipelines.
 //     Retries fire after the backoff interval, not before it.
 //   - Exponential backoff (up to 60s) for transient errors (5xx, network issues)
 //   - Immediate termination on fatal errors (4xx client errors)
@@ -262,7 +262,7 @@
 // CollectorService:
 //   - Pipeline and scheduler lifecycle protected by sync.Mutex
 //   - Pipeline state is pull-based (no callbacks crossing lock boundaries)
-//   - Single pipeline at a time; stale completed pipelines tolerated
+//   - Single pipelines at a time; stale completed pipelines tolerated
 //
 // Console:
 //   - Mode changes protected by sync.Mutex (prevents double run loop)

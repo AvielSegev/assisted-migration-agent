@@ -121,7 +121,7 @@ func (m *MockInspectorService) Start(ctx context.Context, vmIDs []string, cred *
 	return m.StartError
 }
 
-func (m *MockInspectorService) Add(ctx context.Context, vmIDs []string) error {
+func (m *MockInspectorService) Add(vmIDs []string) error {
 	m.AddCallCount++
 	return m.AddError
 }

@@ -34,7 +34,7 @@ var _ = Describe("WorkPipeline", func() {
 	})
 
 	Context("Start", func() {
-		// Given a pipeline with no work units
+		// Given a pipelines with no work units
 		// When Start is called
 		// Then it should return nil, preserve the initial state, and not be running
 		It("should be a no-op for empty units", func() {
@@ -53,7 +53,7 @@ var _ = Describe("WorkPipeline", func() {
 			Expect(state.Err).NotTo(HaveOccurred())
 		})
 
-		// Given a pipeline with units but no scheduler
+		// Given a pipelines with units but no scheduler
 		// When Start is called
 		// Then it should return an error
 		It("should return error when scheduler is nil", func() {
@@ -70,9 +70,9 @@ var _ = Describe("WorkPipeline", func() {
 			Expect(err).To(HaveOccurred())
 		})
 
-		// Given a pipeline that is already running
+		// Given a pipelines that is already running
 		// When Start is called a second time
-		// Then it should return a pipeline-already-running error
+		// Then it should return a pipelines-already-running error
 		It("should return error on double start", func() {
 			// Arrange
 			gate := make(chan struct{})
@@ -93,7 +93,7 @@ var _ = Describe("WorkPipeline", func() {
 			err := p.Start()
 
 			// Assert
-			Expect(err).To(MatchError("pipeline is already running"))
+			Expect(err).To(MatchError("pipelines is already running"))
 
 			close(gate)
 			Eventually(p.IsRunning).Should(BeFalse())
@@ -101,8 +101,8 @@ var _ = Describe("WorkPipeline", func() {
 	})
 
 	Context("sequential execution", func() {
-		// Given a pipeline with three chained units (add-1, add-10, mul-2)
-		// When the pipeline runs to completion
+		// Given a pipelines with three chained units (add-1, add-10, mul-2)
+		// When the pipelines runs to completion
 		// Then the result should be (0+1+10)*2 = 22 with no error
 		It("should execute units in order and thread the result", func() {
 			// Arrange
@@ -124,9 +124,9 @@ var _ = Describe("WorkPipeline", func() {
 			Expect(state.Result).To(Equal((0 + 1 + 10) * 2))
 		})
 
-		// Given a pipeline with two units
-		// When the pipeline runs and the first unit blocks
-		// Then the current state should be pulled from the pipeline while it is running
+		// Given a pipelines with two units
+		// When the pipelines runs and the first unit blocks
+		// Then the current state should be pulled from the pipelines while it is running
 		It("should expose current state while running", func() {
 			// Arrange
 			gate := make(chan struct{})
@@ -161,8 +161,8 @@ var _ = Describe("WorkPipeline", func() {
 			Expect(state.Err).NotTo(HaveOccurred())
 		})
 
-		// Given a pipeline where the second of three units fails
-		// When the pipeline runs
+		// Given a pipelines where the second of three units fails
+		// When the pipelines runs
 		// Then the error should be recorded and the third unit should never execute
 		It("should stop on first error and report it via State", func() {
 			// Arrange
@@ -195,8 +195,8 @@ var _ = Describe("WorkPipeline", func() {
 			Expect(callCount.Load()).To(Equal(int32(2)))
 		})
 
-		// Given a pipeline where a unit fails
-		// When the pipeline finishes
+		// Given a pipelines where a unit fails
+		// When the pipelines finishes
 		// Then State should expose the terminal error
 		It("should expose terminal error through State", func() {
 			// Arrange
@@ -221,7 +221,7 @@ var _ = Describe("WorkPipeline", func() {
 	})
 
 	Context("Stop", func() {
-		// Given a pipeline that has not been started
+		// Given a pipelines that has not been started
 		// When Stop is called
 		// Then it should not panic
 		It("should be safe to call when not running", func() {
@@ -235,10 +235,10 @@ var _ = Describe("WorkPipeline", func() {
 			Expect(func() { p.Stop() }).NotTo(Panic())
 		})
 
-		// Given a pipeline with a blocking unit that respects context cancellation
+		// Given a pipelines with a blocking unit that respects context cancellation
 		// When Stop is called while the unit is running
-		// Then the pipeline should report errPipelineStopped and stop
-		It("should cancel a running pipeline", func() {
+		// Then the pipelines should report errPipelineStopped and stop
+		It("should cancel a running pipelines", func() {
 			// Arrange
 			gate := make(chan struct{})
 			units := []models.WorkUnit[string, int]{
@@ -263,12 +263,12 @@ var _ = Describe("WorkPipeline", func() {
 			p.Stop()
 
 			// Assert
-			Expect(p.State().Err).To(MatchError("pipeline is stopped"))
+			Expect(p.State().Err).To(MatchError("pipelines is stopped"))
 			Expect(p.IsRunning()).To(BeFalse())
 		})
 
-		// Given a pipeline that was stopped
-		// When a new pipeline is created on the same scheduler and started
+		// Given a pipelines that was stopped
+		// When a new pipelines is created on the same scheduler and started
 		// Then it should run to completion
 		It("should allow restart after stop", func() {
 			// Arrange
@@ -303,7 +303,7 @@ var _ = Describe("WorkPipeline", func() {
 			Expect(p2.State().Result).To(Equal(1))
 		})
 
-		// Given a pipeline with a fast unit that completes almost instantly
+		// Given a pipelines with a fast unit that completes almost instantly
 		// When Stop is called right after Start (racing with natural completion)
 		// Then Stop should return without deadlocking
 		It("should not deadlock when stop races with natural completion", func() {
@@ -368,10 +368,10 @@ var _ = Describe("WorkPipeline", func() {
 			}
 		})
 
-		// Given a slow pipeline and a fast pipeline sharing a 4-worker scheduler
-		// When the slow pipeline is stopped while the fast pipeline is running
-		// Then the fast pipeline should complete successfully and the slow one should be canceled
-		It("should allow stopping one pipeline without affecting the other", func() {
+		// Given a slow pipelines and a fast pipelines sharing a 4-worker scheduler
+		// When the slow pipelines is stopped while the fast pipelines is running
+		// Then the fast pipelines should complete successfully and the slow one should be canceled
+		It("should allow stopping one pipelines without affecting the other", func() {
 			// Arrange
 			multiSched := scheduler.NewScheduler[int](4)
 			defer multiSched.Close()
@@ -407,12 +407,12 @@ var _ = Describe("WorkPipeline", func() {
 			// Assert
 			Expect(pFast.State().Err).NotTo(HaveOccurred())
 			Expect(pFast.State().Result).To(Equal(30))
-			Expect(pSlow.State().Err).To(MatchError("pipeline is stopped"))
+			Expect(pSlow.State().Err).To(MatchError("pipelines is stopped"))
 		})
 
 		// Given two pipelines sharing a 2-worker scheduler, one that fails and one that succeeds
 		// When both pipelines run concurrently
-		// Then each pipeline should report its own result independently
+		// Then each pipelines should report its own result independently
 		It("should isolate errors between pipelines on the same scheduler", func() {
 			// Arrange
 			multiSched := scheduler.NewScheduler[int](2)
@@ -446,7 +446,7 @@ var _ = Describe("WorkPipeline", func() {
 	})
 
 	Context("stress", func() {
-		// Given 10 goroutines each creating a pipeline, starting it, and immediately stopping it
+		// Given 10 goroutines each creating a pipelines, starting it, and immediately stopping it
 		// When all goroutines run concurrently on a shared scheduler
 		// Then no goroutine should panic or deadlock, and all pipelines should end up not running
 		It("should handle start + immediate stop without races", func() {
@@ -494,7 +494,7 @@ var _ = Describe("WorkPipeline", func() {
 			Eventually(waitCh, 10*time.Second).Should(BeClosed())
 		})
 
-		// Given a single running pipeline with a blocking unit
+		// Given a single running pipelines with a blocking unit
 		// When 10 goroutines all call Stop concurrently
 		// Then no goroutine should panic or deadlock
 		It("should handle concurrent Stop calls without races", func() {

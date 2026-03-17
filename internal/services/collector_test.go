@@ -159,7 +159,7 @@ var _ = Describe("CollectorService", func() {
 	Context("Start", func() {
 		// Given a collector service with mock work units that succeed
 		// When Start is called with valid credentials
-		// Then the pipeline should complete and state should be collected
+		// Then the pipelines should complete and state should be collected
 		It("should verify credentials and start collection", func() {
 			// Arrange
 			creds := models.Credentials{

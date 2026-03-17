@@ -154,20 +154,20 @@ func (c *Console) Status() models.ConsoleStatus {
 
 // run is the main loop that sends status and inventory updates to the console.
 //
-// It creates a single pipeline and scheduler, reusing them across iterations.
-// Each dispatch is a 2-unit pipeline: status update, then inventory sync.
+// It creates a single pipelines and scheduler, reusing them across iterations.
+// Each dispatch is a 2-unit pipelines: status update, then inventory sync.
 //
 // Loop structure:
 //
 //  1. Wait for the current interval or close signal.
-//  2. If a restart is pending, start the pipeline. This is the retry point
+//  2. If a restart is pending, start the pipelines. This is the retry point
 //     after both successful and failed dispatches.
-//  3. If the pipeline is still running, skip this tick.
-//  4. Once the pipeline finishes, process the result:
+//  3. If the pipelines is still running, skip this tick.
+//  4. Once the pipelines finishes, process the result:
 //     - Fatal error (4xx from console): stop the loop permanently.
 //     - Transient error: double the interval (up to maxBackoffInterval).
 //     - Success: reset the interval to updateInterval.
-//  5. Mark a restart as pending. The pipeline is NOT started immediately;
+//  5. Mark a restart as pending. The pipelines is NOT started immediately;
 //     the next iteration waits for the (possibly doubled) interval first.
 //
 // This two-phase approach (process result → wait → restart) ensures that
@@ -177,7 +177,7 @@ func (c *Console) Status() models.ConsoleStatus {
 // Shutdown:
 //
 // The close signal is checked on every iteration via the select. On exit,
-// the deferred cleanup stops the pipeline, closes the scheduler, and sends
+// the deferred cleanup stops the pipelines, closes the scheduler, and sends
 // an ack on closeCh. Stop() and SetMode use a non-blocking send to handle
 // both normal shutdown (run alive) and self-exit (run already finished).
 func (c *Console) run(closeCh chan any) {

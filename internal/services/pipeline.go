@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	errPipelineRunning = errors.New("pipeline is already running")
-	errPipelineStopped = errors.New("pipeline is stopped")
+	errPipelineRunning = errors.New("pipelines is already running")
+	errPipelineStopped = errors.New("pipelines is stopped")
 )
 
 // WorkPipeline is a generic executor that runs a sequence of WorkUnit[S, R]
@@ -38,8 +38,8 @@ var (
 //   - stop: closed by Stop() to signal the goroutine to abort
 //   - done: closed by the goroutine on exit to unblock Stop()
 //
-// When stopped, the pipeline reports errPipelineStopped (not context.Canceled),
-// since cancellation is driven by the pipeline's own stop channel, not an
+// When stopped, the pipelines reports errPipelineStopped (not context.Canceled),
+// since cancellation is driven by the pipelines's own stop channel, not an
 // external context.
 //
 // Usage:
@@ -79,7 +79,7 @@ func NewWorkPipeline[S any, R any](
 
 // Start begins executing units sequentially. Each unit is submitted to the
 // scheduler as a separate work item. Returns errPipelineRunning if already
-// active. The pipeline updates its internal state before each unit.
+// active. The pipelines updates its internal state before each unit.
 func (p *WorkPipeline[S, R]) Start() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -89,7 +89,7 @@ func (p *WorkPipeline[S, R]) Start() error {
 	}
 
 	if p.sched == nil {
-		return errors.New("pipeline scheduler is required")
+		return errors.New("pipelines scheduler is required")
 	}
 
 	if p.done != nil {
@@ -151,7 +151,7 @@ func (p *WorkPipeline[S, R]) Start() error {
 }
 
 // Stop cancels the currently executing work unit and blocks until the
-// pipeline goroutine finishes. Safe to call when not running and safe
+// pipelines goroutine finishes. Safe to call when not running and safe
 // to call concurrently.
 func (p *WorkPipeline[S, R]) Stop() {
 	p.mu.Lock()
@@ -178,7 +178,7 @@ func (p *WorkPipeline[S, R]) State() WorkPipelineStatus[S, R] {
 	}
 }
 
-// IsRunning returns whether the pipeline is currently executing.
+// IsRunning returns whether the pipelines is currently executing.
 func (p *WorkPipeline[S, R]) IsRunning() bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()

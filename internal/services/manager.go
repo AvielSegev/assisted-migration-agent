@@ -72,8 +72,10 @@ func (m *ServiceManager) Initialize() error {
 		m.cfg.Agent.DataFolder,
 		m.cfg.Agent.OpaPoliciesFolder,
 	)
-	m.inspector = NewInspectorService(m.scheduler, m.store).
-		WithBuilder(models.UnimplementedInspectorWorkBuilder{})
+	m.inspector = NewInspectorService().
+		WithWorkUnitsBuilder(func(id string) []models.WorkUnit[models.InspectionStatus, models.InspectionResult] {
+			return make([]models.WorkUnit[models.InspectionStatus, models.InspectionResult], 0)
+		})
 	m.vddk = NewVddkService(m.cfg.Agent.DataFolder, m.store)
 
 	consoleSrv, err := NewConsoleService(

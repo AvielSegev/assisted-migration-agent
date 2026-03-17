@@ -15,7 +15,6 @@ type Store struct {
 	configuration *ConfigurationStore
 	inventory     *InventoryStore
 	vm            *VMStore
-	inspection    *InspectionStore
 	group         *GroupStore
 	vddk          *VddkStore
 	transactor    *DBTransactor
@@ -30,7 +29,6 @@ func NewStore(db *sql.DB, validator duckdb_parser.Validator) *Store {
 		configuration: NewConfigurationStore(qi),
 		inventory:     NewInventoryStore(qi),
 		vm:            NewVMStore(qi, parser),
-		inspection:    NewInspectionStore(qi),
 		group:         NewGroupStore(qi),
 		vddk:          NewVddkStore(qi),
 		transactor:    newTransactor(db),
@@ -63,10 +61,6 @@ func (s *Store) Inventory() *InventoryStore {
 
 func (s *Store) VM() *VMStore {
 	return s.vm
-}
-
-func (s *Store) Inspection() *InspectionStore {
-	return s.inspection
 }
 
 func (s *Store) Group() *GroupStore {

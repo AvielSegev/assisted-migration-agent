@@ -69,6 +69,8 @@ func (c *CollectorService) GetStatus() models.CollectorStatus {
 		}
 	}
 
+	// todo: how to cancel?
+
 	return models.CollectorStatus{State: models.CollectorStateReady}
 }
 
@@ -108,7 +110,7 @@ func (c *CollectorService) Start(ctx context.Context, creds models.Credentials) 
 	return nil
 }
 
-// Stop detaches the current pipeline and scheduler under lock, then shuts them
+// Stop detaches the current pipelines and scheduler under lock, then shuts them
 // down outside the lock. This prevents Start from reusing instances that are in
 // teardown while allowing GetStatus to fall back to the idle service state.
 func (c *CollectorService) Stop() {

@@ -210,7 +210,7 @@ func (h *Handler) AddVMsToInspection(c *gin.Context) {
 		return
 	}
 
-	if err := h.inspectorSrv.Add(c.Request.Context(), vmsMoid); err != nil {
+	if err := h.inspectorSrv.Add(vmsMoid); err != nil {
 		if srvErrors.IsInspectorNotRunningError(err) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
