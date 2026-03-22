@@ -59,12 +59,11 @@ const (
 
 // Defines values for VmInspectionStatusState.
 const (
-	VmInspectionStatusStateCanceled   VmInspectionStatusState = "canceled"
-	VmInspectionStatusStateCompleted  VmInspectionStatusState = "completed"
-	VmInspectionStatusStateError      VmInspectionStatusState = "error"
-	VmInspectionStatusStateNotStarted VmInspectionStatusState = "not_started"
-	VmInspectionStatusStatePending    VmInspectionStatusState = "pending"
-	VmInspectionStatusStateRunning    VmInspectionStatusState = "running"
+	VmInspectionStatusStateCanceled  VmInspectionStatusState = "canceled"
+	VmInspectionStatusStateCompleted VmInspectionStatusState = "completed"
+	VmInspectionStatusStateError     VmInspectionStatusState = "error"
+	VmInspectionStatusStatePending   VmInspectionStatusState = "pending"
+	VmInspectionStatusStateRunning   VmInspectionStatusState = "running"
 )
 
 // AgentModeRequest defines model for AgentModeRequest.
@@ -332,8 +331,10 @@ type VirtualMachine struct {
 	DiskSize int64 `json:"diskSize"`
 
 	// Id VirtualMachine ID in vCenter
-	Id         string             `json:"id"`
-	Inspection VmInspectionStatus `json:"inspection"`
+	Id string `json:"id"`
+
+	// Inspection VirtualMachine Inspection status and results
+	Inspection *VmInspection `json:"inspection,omitempty"`
 
 	// IssueCount Number of issues found for this VirtualMachine
 	IssueCount int `json:"issueCount"`
@@ -408,8 +409,10 @@ type VirtualMachineDetail struct {
 	HostName *string `json:"hostName,omitempty"`
 
 	// Id Unique identifier for the VirtualMachine in vCenter
-	Id         string              `json:"id"`
-	Inspection *VmInspectionStatus `json:"inspection,omitempty"`
+	Id string `json:"id"`
+
+	// Inspection VirtualMachine Inspection results
+	Inspection *VmInspectionResults `json:"inspection,omitempty"`
 
 	// IpAddress Primary IP address of the guest OS as reported by VMware Tools
 	IpAddress *string `json:"ipAddress,omitempty"`
@@ -462,6 +465,24 @@ type VirtualMachineListResponse struct {
 	// Total Total number of VMs matching the filter
 	Total int              `json:"total"`
 	Vms   []VirtualMachine `json:"vms"`
+}
+
+// VmInspection VirtualMachine Inspection status and results
+type VmInspection struct {
+	// Results VirtualMachine Inspection results
+	Results *VmInspectionResults `json:"results,omitempty"`
+	Status  VmInspectionStatus   `json:"status"`
+}
+
+// VmInspectionCheck Represents the structure of vm-migration-detective library checks
+type VmInspectionCheck struct {
+	Category string `json:"category"`
+	Id       string `json:"id"`
+}
+
+// VmInspectionResults VirtualMachine Inspection results
+type VmInspectionResults struct {
+	Checks *[]VmInspectionCheck `json:"checks,omitempty"`
 }
 
 // VmInspectionStatus defines model for VmInspectionStatus.

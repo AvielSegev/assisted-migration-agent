@@ -600,6 +600,38 @@ components:
           x-oapi-codegen-extra-tags:
             binding: "required,oneof=connected disconnected"
 
+    VmInspection:
+      type: object
+      description: VirtualMachine Inspection status and results
+      required:
+        - status
+      properties:
+        status:
+          $ref: '#/components/schemas/VmInspectionStatus'
+        results:
+          $ref: '#/components/schemas/VmInspectionResults'
+
+    VmInspectionResults:
+      type: object
+      description: VirtualMachine Inspection results
+      properties:
+        checks:
+          type: array
+          items:
+            $ref: '#/components/schemas/VmInspectionCheck'
+
+    VmInspectionCheck:
+      type: object
+      description: Represents the structure of vm-migration-detective library checks
+      required:
+        - id
+        - category
+      properties:
+        id:
+          type: string
+        category:
+          type: string
+
     VmInspectionStatus:
       type: object
       required:
@@ -613,14 +645,12 @@ components:
             - completed
             - canceled
             - error
-            - not_started
           x-enum-varnames:
             - VmInspectionStatusStatePending
             - VmInspectionStatusStateRunning
             - VmInspectionStatusStateCompleted
             - VmInspectionStatusStateCanceled
             - VmInspectionStatusStateError
-            - VmInspectionStatusStateNotStarted
           description: Current inspection state
         error:
           type: string
@@ -640,7 +670,6 @@ components:
         - diskSize
         - memory
         - issueCount
-        - inspection
       properties:
         name:
           type: string
@@ -675,7 +704,7 @@ components:
           type: boolean
           description: True if the vm is a template. False otherwise
         inspection:
-          $ref: '#/components/schemas/VmInspectionStatus'
+          $ref: '#/components/schemas/VmInspection'
         tags:
           type: array
           items:
@@ -803,8 +832,7 @@ components:
             $ref: '#/components/schemas/VMIssue'
           description: List of issues affecting this VirtualMachine
         inspection:
-          $ref: '#/components/schemas/VmInspectionStatus'
-          description: Current inspection status for this VirtualMachine
+          $ref: '#/components/schemas/VmInspectionResults'
 
     VMDisk:
       type: object

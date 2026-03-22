@@ -82,7 +82,38 @@ var _ = Describe("NewVirtualMachineFromSummary", func() {
 		Expect(vm.Memory).To(Equal(int64(4096)))
 		Expect(vm.DiskSize).To(Equal(int64(102400)))
 		Expect(vm.IssueCount).To(Equal(3))
-		Expect(vm.Inspection.State).To(Equal(v1.VmInspectionStatusStateNotStarted))
+	})
+
+	It("should not return inspection when not started", func() {
+		summary := models.VirtualMachineSummary{
+			Status: models.InspectionStatus{State: models.InspectionStateNotStarted},
+		}
+
+		vm := v1.NewVirtualMachineFromSummary(summary)
+
+		Expect(vm.Inspection).To(BeNil())
+	})
+
+	It("should return inspection when initiated", func() {
+		type want struct {
+			modelState models.InspectionState
+			apiState   v1.VmInspectionStatusState
+		}
+		cases := []want{
+			{models.InspectionStatePending, v1.VmInspectionStatusStatePending},
+			{models.InspectionStateRunning, v1.VmInspectionStatusStateRunning},
+			{models.InspectionStateCompleted, v1.VmInspectionStatusStateCompleted},
+			{models.InspectionStateCanceled, v1.VmInspectionStatusStateCanceled},
+			{models.InspectionStateError, v1.VmInspectionStatusStateError},
+		}
+		for _, tc := range cases {
+			summary := models.VirtualMachineSummary{
+				Status: models.InspectionStatus{State: tc.modelState},
+			}
+			vm := v1.NewVirtualMachineFromSummary(summary)
+			Expect(vm.Inspection).NotTo(BeNil())
+			Expect(vm.Inspection.Status.State).To(Equal(tc.apiState))
+		}
 	})
 
 	Context("Tags", func() {
