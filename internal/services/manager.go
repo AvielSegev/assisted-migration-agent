@@ -5,10 +5,13 @@ import (
 	"errors"
 
 	"github.com/kubev2v/assisted-migration-agent/internal/config"
-	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	"github.com/kubev2v/assisted-migration-agent/internal/store"
 	"github.com/kubev2v/assisted-migration-agent/pkg/console"
 	"github.com/kubev2v/assisted-migration-agent/pkg/scheduler"
+)
+
+const (
+	maxVMsPerCycle = 10
 )
 
 type ServiceManager struct {
@@ -73,12 +76,7 @@ func (m *ServiceManager) Initialize() error {
 		m.cfg.Agent.OpaPoliciesFolder,
 	)
 
-	// Todo: remove WithWorkUnitsBuilder when service is ready
-	m.inspector = NewInspectorService(10).
-		WithInspectionBuilder(
-			func(id string) []models.WorkUnit[models.InspectionStatus, models.InspectionResult] {
-				return make([]models.WorkUnit[models.InspectionStatus, models.InspectionResult], 0)
-			})
+	m.inspector = NewInspectorService(maxVMsPerCycle)
 
 	m.vddk = NewVddkService(m.cfg.Agent.DataFolder, m.store)
 
