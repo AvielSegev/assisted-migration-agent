@@ -22,6 +22,7 @@ import (
 
 const (
 	vddkFolder = "vddk"
+	vddkPrefix = "vmware-vix-disklib-distrib"
 )
 
 var (
@@ -117,7 +118,7 @@ func (v *VddkService) extractVersion(filename, extractedFolder string) (string, 
 	}
 
 	// fallback: by extracted content
-	entries, err := os.ReadDir(filepath.Join(extractedFolder, "vmware-vix-disklib-distrib", "lib64"))
+	entries, err := os.ReadDir(filepath.Join(extractedFolder, "lib64"))
 	if err != nil {
 		return "", fmt.Errorf("cannot read lib64 directory: %w", err)
 	}
@@ -132,6 +133,25 @@ func (v *VddkService) extractVersion(filename, extractedFolder string) (string, 
 	}
 
 	return "", fmt.Errorf("no version found in filename '%s' or tar content", filename)
+}
+
+func pathInsideDest(destDir, candidate string) bool {
+	destClean := filepath.Clean(destDir)
+	candClean := filepath.Clean(candidate)
+	if candClean == destClean {
+		return true
+	}
+	sep := string(os.PathSeparator)
+	return strings.HasPrefix(candClean, destClean+sep)
+}
+
+// symlinkResolvedPath returns the absolute path a symlink at linkPath would resolve to
+// if its target were linkname (without following other symlinks).
+func symlinkResolvedPath(linkPath, linkname string) string {
+	if filepath.IsAbs(linkname) {
+		return filepath.Clean(linkname)
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(linkPath), linkname))
 }
 
 // extractTarGz extracts all files and directories from a given reader and overrides a specified destination folder
@@ -155,7 +175,13 @@ func extractTarGz(r io.Reader, destDir string) error {
 			return err
 		}
 
-		targetPath := filepath.Clean(filepath.Join(destDir, header.Name))
+		// Strip first directory (vmware-vix-disklib-distrib/)
+		strippedPath := strings.TrimPrefix(header.Name, vddkPrefix)
+		if strippedPath == header.Name {
+			continue
+		}
+
+		targetPath := filepath.Clean(filepath.Join(destDir, strippedPath))
 		// Ensure the target path is inside destDir
 		if !strings.HasPrefix(targetPath, filepath.Clean(destDir)+string(os.PathSeparator)) &&
 			targetPath != filepath.Clean(destDir) {
@@ -181,6 +207,28 @@ func extractTarGz(r io.Reader, destDir string) error {
 			_ = outFile.Close()
 			if err := os.Chmod(targetPath, os.FileMode(header.Mode)); err != nil {
 				return err
+			}
+		case tar.TypeSymlink:
+			if !pathInsideDest(destDir, symlinkResolvedPath(targetPath, header.Linkname)) {
+				return fmt.Errorf("illegal symlink target %q -> %q", targetPath, header.Linkname)
+			}
+
+			_ = os.Remove(targetPath)
+			if err := os.Symlink(header.Linkname, targetPath); err != nil {
+				return fmt.Errorf("symlink %s: %w", targetPath, err)
+			}
+		case tar.TypeLink:
+			linkStripped := strings.TrimPrefix(header.Linkname, vddkPrefix)
+			if linkStripped == header.Linkname {
+				return fmt.Errorf("hard link target outside bundle: %s", header.Linkname)
+			}
+			existingPath := filepath.Clean(filepath.Join(destDir, linkStripped))
+			if !pathInsideDest(destDir, existingPath) {
+				return fmt.Errorf("illegal hard link target path: %s", existingPath)
+			}
+			_ = os.Remove(targetPath)
+			if err := os.Link(existingPath, targetPath); err != nil {
+				return fmt.Errorf("hard link %s -> %s: %w", targetPath, existingPath, err)
 			}
 		}
 	}
