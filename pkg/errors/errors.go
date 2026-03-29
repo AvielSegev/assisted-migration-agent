@@ -222,3 +222,26 @@ func IsCredentialsNotSetError(err error) bool {
 	var e *CredentialsNotSetError
 	return errors.As(err, &e)
 }
+
+// VddkVersionMismatch indicates that the provided VDDK version
+// is different from the expected client version.
+type VddkVersionMismatch struct {
+	Expected string // expected VDDK version
+	Actual   string // actual VDDK version
+}
+
+func NewVddkVersionMismatch(expected, actual string) *VddkVersionMismatch {
+	return &VddkVersionMismatch{
+		Expected: expected,
+		Actual:   actual,
+	}
+}
+
+func (e *VddkVersionMismatch) Error() string {
+	return fmt.Sprintf("VDDK version mismatch (expected %s, actual %s)", e.Expected, e.Actual)
+}
+
+func IsVddkVersionMismatch(err error) bool {
+	var e *VddkVersionMismatch
+	return errors.As(err, &e)
+}

@@ -59,7 +59,7 @@ func (i *InspectorService) GetVmStatus(id string) models.InspectionStatus {
 }
 
 // Start connects to vSphere, starts pipelines for each vmIDs entry, and launches the run loop.
-func (i *InspectorService) Start(ctx context.Context, vmIDs []string) error {
+func (i *InspectorService) Start(ctx context.Context, vddkVersion string, vmIDs []string) error {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 
@@ -75,9 +75,6 @@ func (i *InspectorService) Start(ctx context.Context, vmIDs []string) error {
 		return srvErrors.NewInspectionLimitReachedError(i.inspectionLimit)
 	}
 
-	i.state.Set(models.InspectorStateInitiating)
-	zap.S().Infow("starting inspector", "vmCount", len(vmIDs))
-
 	vClient, err := vmware.NewVsphereClient(ctx, i.cred.URL, i.cred.Username, i.cred.Password, true)
 	if err != nil {
 		zap.S().Named("inspector_service").Errorw("failed to connect to vSphere", "error", err)
@@ -85,7 +82,12 @@ func (i *InspectorService) Start(ctx context.Context, vmIDs []string) error {
 		return err
 	}
 
-	zap.S().Named("inspector_service").Info("vSphere connection established")
+	if vClient.Version != vddkVersion {
+		return srvErrors.NewVddkVersionMismatch(vddkVersion, vClient.Version)
+	}
+
+	i.state.Set(models.InspectorStateInitiating)
+	zap.S().Infow("starting inspector", "vmCount", len(vmIDs))
 
 	i.vsphereClient = vClient
 	i.stop = make(chan struct{}, 1)
