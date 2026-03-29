@@ -30,17 +30,24 @@ func (h *Handler) StartInspection(c *gin.Context) {
 		return
 	}
 
-	if _, err := h.vddkSrv.Status(c.Request.Context()); err != nil && srvErrors.IsResourceNotFoundError(err) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "must upload a vddk before starting an inspection"})
+	s, err := h.vddkSrv.Status(c.Request.Context())
+	if err != nil {
+		if srvErrors.IsResourceNotFoundError(err) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "must upload a vddk before starting an inspection"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.inspectorSrv.Start(c.Request.Context(), req.VmIds); err != nil {
+	if err := h.inspectorSrv.Start(c.Request.Context(), s.Version, req.VmIds); err != nil {
 		if srvErrors.IsOperationInProgressError(err) {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
-		if srvErrors.IsInspectionLimitReachedError(err) || srvErrors.IsCredentialsNotSetError(err) {
+		if srvErrors.IsInspectionLimitReachedError(err) ||
+			srvErrors.IsCredentialsNotSetError(err) ||
+			srvErrors.IsVddkVersionMismatch(err) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}

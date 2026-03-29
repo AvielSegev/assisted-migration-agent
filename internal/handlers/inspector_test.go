@@ -107,6 +107,11 @@ var _ = Describe("Inspector Handler", func() {
 	})
 
 	Context("StartInspection", func() {
+		BeforeEach(func() {
+			mockVddk.StatusResult = &models.VddkStatus{Version: "8.0.3"}
+			mockVddk.StatusError = nil
+		})
+
 		It("should return 400 for invalid request body", func() {
 			req := httptest.NewRequest(http.MethodPost, "/inspector", strings.NewReader("invalid json"))
 			req.Header.Set("Content-Type", "application/json")
@@ -147,6 +152,8 @@ var _ = Describe("Inspector Handler", func() {
 			err := json.Unmarshal(w.Body.Bytes(), &response)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(response.State).To(Equal(v1.InspectorStatusStateInitiating))
+			Expect(mockInspector.LastStartVddkVersion).To(Equal("8.0.3"))
+			Expect(mockInspector.LastStartVmIDs).To(Equal([]string{"vm-1"}))
 		})
 
 		It("should return 500 when start fails", func() {

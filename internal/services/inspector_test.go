@@ -96,9 +96,10 @@ func newMockInspectionBuilder() *mockInspectionBuilder {
 
 var _ = Describe("InspectorService", func() {
 	var (
-		ctx context.Context
-		db  *sql.DB
-		srv *services.InspectorService
+		ctx         context.Context
+		db          *sql.DB
+		srv         *services.InspectorService
+		vddkVersion string
 	)
 
 	// Helper to insert test VMs into vinfo table
@@ -126,6 +127,12 @@ var _ = Describe("InspectorService", func() {
 		insertVM("vm-3", "test-vm-3")
 
 		srv = services.NewInspectorService(nil, 10, "")
+		//
+		//c := getVCenterCredentials()
+		//vc, err := vmware.NewVsphereClient(ctx, c.URL, c.Username, c.Password, true)
+		//Expect(err).NotTo(HaveOccurred())
+		//vddkVersion = vc.Version
+		//Expect(vc.Logout(ctx)).To(Succeed())
 	})
 
 	AfterEach(func() {
@@ -175,7 +182,7 @@ var _ = Describe("InspectorService", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				// Start inspector with vm-0 (will stay running due to inspection delay)
-				err = srv.Start(ctx, []string{"vm-0"})
+				err = srv.Start(ctx, vddkVersion, []string{"vm-0"})
 				Expect(err).NotTo(HaveOccurred())
 
 				// Wait for inspector to be in running state
@@ -232,7 +239,7 @@ var _ = Describe("InspectorService", func() {
 			err := srv.Credentials(ctx, *getVCenterCredentials())
 			Expect(err).NotTo(HaveOccurred())
 
-			err = srv.Start(ctx, []string{"vm-0"})
+			err = srv.Start(ctx, vddkVersion, []string{"vm-0"})
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() models.InspectorState {
@@ -283,7 +290,7 @@ var _ = Describe("InspectorService", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				// Start inspector with vm-0 (will stay running due to delay)
-				err = srv.Start(ctx, []string{"vm-0"})
+				err = srv.Start(ctx, vddkVersion, []string{"vm-0"})
 				Expect(err).NotTo(HaveOccurred())
 
 				// Wait for inspector to be in running state
@@ -347,7 +354,7 @@ var _ = Describe("InspectorService", func() {
 			err := srv.Credentials(ctx, *getVCenterCredentials())
 			Expect(err).NotTo(HaveOccurred())
 
-			err = srv.Start(ctx, []string{"vm-1"})
+			err = srv.Start(ctx, vddkVersion, []string{"vm-1"})
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() models.InspectorState {
@@ -369,7 +376,7 @@ var _ = Describe("InspectorService", func() {
 			err := srv.Credentials(ctx, *getVCenterCredentials())
 			Expect(err).NotTo(HaveOccurred())
 
-			err = srv.Start(ctx, []string{"vm-1", "vm-2", "vm-3"})
+			err = srv.Start(ctx, vddkVersion, []string{"vm-1", "vm-2", "vm-3"})
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() models.InspectorState {
@@ -393,7 +400,7 @@ var _ = Describe("InspectorService", func() {
 			err := srv.Credentials(ctx, invalidCreds)
 			Expect(err).To(HaveOccurred())
 
-			err = srv.Start(ctx, []string{"vm-1"})
+			err = srv.Start(ctx, vddkVersion, []string{"vm-1"})
 			Expect(srvErrors.IsCredentialsNotSetError(err)).To(BeTrue())
 
 			// Bad request from the user, Hence the Inspector should remain in ready state.
@@ -408,7 +415,7 @@ var _ = Describe("InspectorService", func() {
 			err := srv.Credentials(ctx, *getVCenterCredentials())
 			Expect(err).NotTo(HaveOccurred())
 
-			err = srv.Start(ctx, []string{"vm-1", "vm-2"})
+			err = srv.Start(ctx, vddkVersion, []string{"vm-1", "vm-2"})
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() models.InspectorState {
@@ -433,14 +440,14 @@ var _ = Describe("InspectorService", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// First run
-			err = srv.Start(ctx, []string{"vm-1"})
+			err = srv.Start(ctx, vddkVersion, []string{"vm-1"})
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() models.InspectorState {
 				return srv.GetStatus().State
 			}, time.Second*10).Should(Equal(models.InspectorStateCompleted))
 
-			err = srv.Start(ctx, []string{"vm-2", "vm-3"})
+			err = srv.Start(ctx, vddkVersion, []string{"vm-2", "vm-3"})
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() models.InspectorState {
@@ -463,7 +470,7 @@ var _ = Describe("InspectorService", func() {
 			err := srv.Credentials(ctx, *getVCenterCredentials())
 			Expect(err).NotTo(HaveOccurred())
 
-			err = srv.Start(ctx, []string{"vm-1"})
+			err = srv.Start(ctx, vddkVersion, []string{"vm-1"})
 			Expect(err).NotTo(HaveOccurred())
 
 			// Should be busy while running
@@ -489,7 +496,7 @@ var _ = Describe("InspectorService", func() {
 			err := srv.Credentials(ctx, *getVCenterCredentials())
 			Expect(err).NotTo(HaveOccurred())
 
-			err = srv.Start(ctx, []string{"vm-1", "vm-2", "vm-3"})
+			err = srv.Start(ctx, vddkVersion, []string{"vm-1", "vm-2", "vm-3"})
 			Expect(err).NotTo(HaveOccurred())
 
 			// Wait for running state
@@ -520,7 +527,7 @@ var _ = Describe("InspectorService", func() {
 			err := srv.Credentials(ctx, *getVCenterCredentials())
 			Expect(err).NotTo(HaveOccurred())
 
-			err = srv.Start(ctx, []string{"vm-1", "vm-2", "vm-3"})
+			err = srv.Start(ctx, vddkVersion, []string{"vm-1", "vm-2", "vm-3"})
 			Expect(err).To(HaveOccurred())
 			Expect(srvErrors.IsInspectionLimitReachedError(err)).To(BeTrue())
 
@@ -539,7 +546,7 @@ var _ = Describe("InspectorService", func() {
 			err := srv.Credentials(ctx, *getVCenterCredentials())
 			Expect(err).NotTo(HaveOccurred())
 
-			err = srv.Start(ctx, []string{"vm-1", "vm-2"})
+			err = srv.Start(ctx, vddkVersion, []string{"vm-1", "vm-2"})
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() models.InspectorState {
@@ -557,7 +564,7 @@ var _ = Describe("InspectorService", func() {
 			err := srv.Credentials(ctx, *getVCenterCredentials())
 			Expect(err).NotTo(HaveOccurred())
 
-			err = srv.Start(ctx, []string{"vm-0"})
+			err = srv.Start(ctx, vddkVersion, []string{"vm-0"})
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() models.InspectorState {

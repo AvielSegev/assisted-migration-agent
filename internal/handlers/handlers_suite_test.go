@@ -104,6 +104,8 @@ type MockInspectorService struct {
 	CancelError                  error
 	StopError                    error
 	StartCallCount               int
+	LastStartVddkVersion         string
+	LastStartVmIDs               []string
 	AddCallCount                 int
 	GetStatusCallCount           int
 	GetVmStatusCallCount         int
@@ -116,8 +118,10 @@ func (m *MockInspectorService) IsBusy() bool {
 	return m.IsBusyResult
 }
 
-func (m *MockInspectorService) Start(ctx context.Context, vmIDs []string) error {
+func (m *MockInspectorService) Start(ctx context.Context, vddkVersion string, vmIDs []string) error {
 	m.StartCallCount++
+	m.LastStartVddkVersion = vddkVersion
+	m.LastStartVmIDs = vmIDs
 	return m.StartError
 }
 
