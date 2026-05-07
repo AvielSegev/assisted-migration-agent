@@ -98,7 +98,7 @@ func (h *Handler) StopInspection(c *gin.Context) {
 	c.JSON(http.StatusAccepted, v1.NewInspectorStatus(h.inspectorSrv.GetStatus()))
 }
 
-// PutInspectorCredentials sets or replaces vCenter credentials used by the inspector.
+// PutInspectorCredentials validates vCenter credentials used by the inspector.
 // (PUT /inspector/credentials)
 func (h *Handler) PutInspectorCredentials(c *gin.Context) {
 	var req v1.VcenterCredentials

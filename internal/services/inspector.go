@@ -88,6 +88,12 @@ func (i *InspectorService) Start(ctx context.Context, creds models.Credentials, 
 
 	zap.S().Infow("starting inspector", "vmCount", len(vmIDs))
 
+	url, err := vmware.NormalizeAndValidateURL(creds.URL)
+	if err != nil {
+		return srvErrors.NewVCenterError(err)
+	}
+	creds.URL = url
+
 	vClient, err := vmware.NewVsphereClient(ctx, creds.URL, creds.Username, creds.Password, true)
 	if err != nil {
 		zap.S().Named("inspector_service").Errorw("failed to connect to vSphere", "error", err)
@@ -137,7 +143,7 @@ func (i *InspectorService) Start(ctx context.Context, creds models.Credentials, 
 func (i *InspectorService) Credentials(ctx context.Context, credentials models.Credentials) error {
 	url, err := vmware.NormalizeAndValidateURL(credentials.URL)
 	if err != nil {
-		return err
+		return srvErrors.NewVCenterError(err)
 	}
 	credentials.URL = url
 
