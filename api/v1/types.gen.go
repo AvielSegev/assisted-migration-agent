@@ -990,8 +990,8 @@ type UpdateGroupJSONRequestBody = UpdateGroupRequest
 // StartInspectionJSONRequestBody defines body for StartInspection for application/json ContentType.
 type StartInspectionJSONRequestBody StartInspectionJSONBody
 
-// PutInspectorCredentialsJSONRequestBody defines body for PutInspectorCredentials for application/json ContentType.
-type PutInspectorCredentialsJSONRequestBody = VcenterCredentials
+// ValidateInspectorCredentialsJSONRequestBody defines body for ValidateInspectorCredentials for application/json ContentType.
+type ValidateInspectorCredentialsJSONRequestBody = VcenterCredentials
 
 // PutInspectorVddkMultipartRequestBody defines body for PutInspectorVddk for multipart/form-data ContentType.
 type PutInspectorVddkMultipartRequestBody PutInspectorVddkMultipartBody
