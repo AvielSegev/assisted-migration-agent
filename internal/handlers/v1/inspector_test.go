@@ -45,7 +45,7 @@ var _ = Describe("Inspector Handler", func() {
 		router = gin.New()
 		router.GET("/inspector", apiWrapper.GetInspectorStatus)
 		router.POST("/inspector", handler.StartInspection)
-		router.PUT("/inspector/credentials", handler.PutInspectorCredentials)
+		router.POST("/inspector/credentials", handler.ValidateInspectorCredentials)
 		router.DELETE("/inspector", handler.StopInspection)
 	})
 
@@ -158,9 +158,9 @@ var _ = Describe("Inspector Handler", func() {
 		})
 	})
 
-	Context("SetInspectorCredentials", func() {
+	Context("ValidateInspectorCredentials", func() {
 		It("should return 400 for invalid request body", func() {
-			req := httptest.NewRequest(http.MethodPut, "/inspector/credentials", strings.NewReader("invalid json"))
+			req := httptest.NewRequest(http.MethodPost, "/inspector/credentials", strings.NewReader("invalid json"))
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 
@@ -175,7 +175,7 @@ var _ = Describe("Inspector Handler", func() {
 		It("should return 400 when vCenter rejects credentials", func() {
 			mockInspector.CredentialsError = srvErrors.NewVCenterError(errors.New("login failed"))
 			reqBody := `{"url":"https://vcenter.example/sdk","username":"u","password":"p"}`
-			req := httptest.NewRequest(http.MethodPut, "/inspector/credentials", strings.NewReader(reqBody))
+			req := httptest.NewRequest(http.MethodPost, "/inspector/credentials", strings.NewReader(reqBody))
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 
@@ -189,7 +189,7 @@ var _ = Describe("Inspector Handler", func() {
 
 		It("should return 200 on success", func() {
 			reqBody := `{"url":"https://vcenter.example/sdk","username":"u","password":"p"}`
-			req := httptest.NewRequest(http.MethodPut, "/inspector/credentials", strings.NewReader(reqBody))
+			req := httptest.NewRequest(http.MethodPost, "/inspector/credentials", strings.NewReader(reqBody))
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 

@@ -98,9 +98,9 @@ func (h *Handler) StopInspection(c *gin.Context) {
 	c.JSON(http.StatusAccepted, v1.NewInspectorStatus(h.inspectorSrv.GetStatus()))
 }
 
-// PutInspectorCredentials validates vCenter credentials used by the inspector.
-// (PUT /inspector/credentials)
-func (h *Handler) PutInspectorCredentials(c *gin.Context) {
+// ValidateInspectorCredentials validates vCenter credentials used by the inspector.
+// (POST /inspector/credentials)
+func (h *Handler) ValidateInspectorCredentials(c *gin.Context) {
 	var req v1.VcenterCredentials
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": validationErrorMessage(err)})

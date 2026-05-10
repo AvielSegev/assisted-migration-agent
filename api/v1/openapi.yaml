@@ -331,9 +331,9 @@ paths:
           description: Internal server error
 
   /inspector/credentials:
-    put:
-      summary: Set or replace inspector credentials
-      operationId: putInspectorCredentials
+    post:
+      summary: Validate vCenter credentials for inspector
+      operationId: validateInspectorCredentials
       requestBody:
         required: true
         content:

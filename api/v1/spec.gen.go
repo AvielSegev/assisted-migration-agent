@@ -88,9 +88,9 @@ type ServerInterface interface {
 	// Start inspection for VMs
 	// (POST /inspector)
 	StartInspection(c *gin.Context)
-	// Set or replace inspector credentials
-	// (PUT /inspector/credentials)
-	PutInspectorCredentials(c *gin.Context)
+	// Validate vCenter credentials for inspector
+	// (POST /inspector/credentials)
+	ValidateInspectorCredentials(c *gin.Context)
 	// Get VDDK status
 	// (GET /inspector/vddk)
 	GetInspectorVddkStatus(c *gin.Context)
@@ -655,8 +655,8 @@ func (siw *ServerInterfaceWrapper) StartInspection(c *gin.Context) {
 	siw.Handler.StartInspection(c)
 }
 
-// PutInspectorCredentials operation middleware
-func (siw *ServerInterfaceWrapper) PutInspectorCredentials(c *gin.Context) {
+// ValidateInspectorCredentials operation middleware
+func (siw *ServerInterfaceWrapper) ValidateInspectorCredentials(c *gin.Context) {
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
@@ -665,7 +665,7 @@ func (siw *ServerInterfaceWrapper) PutInspectorCredentials(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.PutInspectorCredentials(c)
+	siw.Handler.ValidateInspectorCredentials(c)
 }
 
 // GetInspectorVddkStatus operation middleware
@@ -989,7 +989,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.DELETE(options.BaseURL+"/inspector", wrapper.StopInspection)
 	router.GET(options.BaseURL+"/inspector", wrapper.GetInspectorStatus)
 	router.POST(options.BaseURL+"/inspector", wrapper.StartInspection)
-	router.PUT(options.BaseURL+"/inspector/credentials", wrapper.PutInspectorCredentials)
+	router.POST(options.BaseURL+"/inspector/credentials", wrapper.ValidateInspectorCredentials)
 	router.GET(options.BaseURL+"/inspector/vddk", wrapper.GetInspectorVddkStatus)
 	router.PUT(options.BaseURL+"/inspector/vddk", wrapper.PutInspectorVddk)
 	router.GET(options.BaseURL+"/inventory", wrapper.GetInventory)
