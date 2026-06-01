@@ -176,6 +176,26 @@ func extractTarGz(r io.Reader, destDir string) error {
 			return fmt.Errorf("illegal file path: %s", targetPath)
 		}
 
+		// ECOPROJECT-4719 | Before creating files/directories, resolve symlinks in the parent path
+		// to prevent chained symlink attacks (e.g., a/x -> .., then a/x/evil)
+		if header.Typeflag == tar.TypeDir || header.Typeflag == tar.TypeReg || header.Typeflag == tar.TypeSymlink {
+			parentDir := filepath.Dir(targetPath)
+			if parentDir != destDir {
+				resolvedParent, err := filepath.EvalSymlinks(parentDir)
+				if err == nil {
+					// Parent exists - verify resolved path is still strictly inside destDir.
+					// If it resolves to destDir itself, that means a symlink has traversed
+					// back to the root, which indicates an escape attempt.
+					if filepath.Clean(resolvedParent) == filepath.Clean(destDir) {
+						return fmt.Errorf("symlink escape detected: %s resolves to %s (root)", parentDir, resolvedParent)
+					}
+					if !pathInsideDest(destDir, resolvedParent) {
+						return fmt.Errorf("symlink escape detected: %s resolves to %s", parentDir, resolvedParent)
+					}
+				}
+			}
+		}
+
 		switch header.Typeflag {
 		case tar.TypeDir:
 			// create directory

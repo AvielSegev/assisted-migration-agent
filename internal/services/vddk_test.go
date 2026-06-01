@@ -260,6 +260,87 @@ var _ = Describe("VddkService", func() {
 		})
 	})
 
+	Describe("Security: Path Traversal Prevention", func() {
+		It("blocks chained symlink attack", func() {
+			tarGz := test.BuildTarGz(
+				test.TarEntry{
+					Path:       "a/x",
+					LinkTarget: "..",
+				},
+				test.TarEntry{
+					Path:    "a/x/evil.sh",
+					Content: "malicious payload",
+				},
+			)
+			filename := "VMware-vix-disklib-8.0.3-23950268.x86_64.tar.gz"
+			_, err := srv.Upload(context.Background(), filename, bytes.NewReader(tarGz))
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("symlink escape detected"))
+		})
+
+		It("blocks absolute symlink escape", func() {
+			tarGz := test.BuildTarGz(
+				test.TarEntry{
+					Path:       "malicious",
+					LinkTarget: "/etc/passwd",
+				},
+			)
+			filename := "VMware-vix-disklib-8.0.3-23950268.x86_64.tar.gz"
+			_, err := srv.Upload(context.Background(), filename, bytes.NewReader(tarGz))
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("illegal symlink target"))
+		})
+
+		It("blocks relative symlink pointing outside destDir", func() {
+			tarGz := test.BuildTarGz(
+				test.TarEntry{
+					Path:       "a/b/c",
+					LinkTarget: "../../../etc/passwd",
+				},
+			)
+			filename := "VMware-vix-disklib-8.0.3-23950268.x86_64.tar.gz"
+			_, err := srv.Upload(context.Background(), filename, bytes.NewReader(tarGz))
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("illegal symlink target"))
+		})
+
+		It("allows legitimate VDDK internal symlinks", func() {
+			// VDDK tarballs contain .so version symlinks like libcares.so -> libcares.so.2
+			tarGz := test.BuildTarGz(
+				test.TarEntry{
+					Path:    "vmware-vix-disklib-distrib/lib64/libvixDiskLib.so.8.0.3",
+					Content: "library-content",
+				},
+				test.TarEntry{
+					Path:       "vmware-vix-disklib-distrib/lib64/libvixDiskLib.so",
+					LinkTarget: "libvixDiskLib.so.8.0.3",
+				},
+			)
+			filename := "VMware-vix-disklib-8.0.3-23950268.x86_64.tar.gz"
+			_, err := srv.Upload(context.Background(), filename, bytes.NewReader(tarGz))
+			Expect(err).NotTo(HaveOccurred())
+
+			// Verify symlink was created correctly
+			link := filepath.Join(dataDir, "vddk", "vmware-vix-disklib-distrib", "lib64", "libvixDiskLib.so")
+			target, err := os.Readlink(link)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(target).To(Equal("libvixDiskLib.so.8.0.3"))
+		})
+
+		It("blocks directory traversal with clean paths", func() {
+			tarGz := test.BuildTarGz(
+				test.TarEntry{
+					Path:    "../../etc/shadow",
+					Content: "malicious",
+				},
+			)
+			filename := "VMware-vix-disklib-8.0.3-23950268.x86_64.tar.gz"
+			_, err := srv.Upload(context.Background(), filename, bytes.NewReader(tarGz))
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("illegal file path"))
+		})
+	})
+
 	Describe("extractVersion", func() {
 		// extractVersion is unexported; we test via Upload with different filenames and tar layouts
 		It("parses version from VMware-vix-disklib-X.Y.Z-... filename", func() {
