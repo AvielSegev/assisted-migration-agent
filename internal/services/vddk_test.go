@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/google/uuid"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -40,6 +38,11 @@ var _ = Describe("VddkService", func() {
 		err = migrations.Run(context.Background(), db)
 		Expect(err).NotTo(HaveOccurred())
 		st = store.NewStore(db, test.NewMockValidator())
+
+		_, err = db.ExecContext(context.Background(),
+			`INSERT INTO about ("APIVersion", "Product", "InstanceUuid") VALUES (?, ?, ?)`,
+			"8.0.3", "VMware vCenter Server", "test-instance-uuid")
+		Expect(err).NotTo(HaveOccurred())
 
 		srv = services.NewVddkService(dataDir, st)
 	})
@@ -197,9 +200,23 @@ var _ = Describe("VddkService", func() {
 		})
 
 		It("returns InvalidVersionError when VDDK version does not match vCenter API version from about", func() {
-			_, err := db.ExecContext(context.Background(),
-				`INSERT INTO about ("APIVersion", "Product", "InstanceUuid") VALUES (?, ?, ?)`,
-				"8.0.3", "VMware vCenter Server", uuid.New())
+			tarGz := test.BuildTarGz(
+				test.TarEntry{
+					Path:    "lib/x.so",
+					Content: "y",
+				})
+			_, uploadErr := srv.Upload(context.Background(),
+				"VMware-vix-disklib-9.0.0-23950268.x86_64.tar.gz", bytes.NewReader(tarGz))
+			Expect(uploadErr).To(HaveOccurred())
+			Expect(srvErrors.IsInvalidVersionError(uploadErr)).To(BeTrue())
+			var inv *srvErrors.InvalidVersionError
+			Expect(errors.As(uploadErr, &inv)).To(BeTrue())
+			Expect(inv.Expected).To(Equal("8.0"))
+			Expect(inv.Actual).To(Equal("9.0.0"))
+		})
+
+		It("returns error when vCenter API version is not available", func() {
+			_, err := db.ExecContext(context.Background(), `DELETE FROM about`)
 			Expect(err).NotTo(HaveOccurred())
 
 			tarGz := test.BuildTarGz(
@@ -208,19 +225,14 @@ var _ = Describe("VddkService", func() {
 					Content: "y",
 				})
 			_, err = srv.Upload(context.Background(),
-				"VMware-vix-disklib-9.0.0-23950268.x86_64.tar.gz", bytes.NewReader(tarGz))
+				"VMware-vix-disklib-8.0.3-23950268.x86_64.tar.gz", bytes.NewReader(tarGz))
 			Expect(err).To(HaveOccurred())
-			Expect(srvErrors.IsInvalidVersionError(err)).To(BeTrue())
-			var inv *srvErrors.InvalidVersionError
-			Expect(errors.As(err, &inv)).To(BeTrue())
-			Expect(inv.Expected).To(Equal("8.0"))
-			Expect(inv.Actual).To(Equal("9.0.0"))
+			Expect(err.Error()).To(ContainSubstring("vCenter API version not available"))
 		})
 
 		It("succeeds when vCenter API version has more than three components (compares x.y.z only)", func() {
 			_, err := db.ExecContext(context.Background(),
-				`INSERT INTO about ("APIVersion", "Product", "InstanceUuid") VALUES (?, ?, ?)`,
-				"8.0.3.12345", "VMware vCenter Server", "test-instance-uuid")
+				`UPDATE about SET "APIVersion" = ?`, "8.0.3.12345")
 			Expect(err).NotTo(HaveOccurred())
 
 			tarGz := test.BuildTarGz(
@@ -344,6 +356,10 @@ var _ = Describe("VddkService", func() {
 	Describe("extractVersion", func() {
 		// extractVersion is unexported; we test via Upload with different filenames and tar layouts
 		It("parses version from VMware-vix-disklib-X.Y.Z-... filename", func() {
+			_, err := db.ExecContext(context.Background(),
+				`UPDATE about SET "APIVersion" = ?`, "12.34.56")
+			Expect(err).NotTo(HaveOccurred())
+
 			tarGz := test.BuildTarGz(
 				test.TarEntry{
 					Path:    "lib/x.so",

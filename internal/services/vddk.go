@@ -76,6 +76,10 @@ func (v *VddkService) Upload(ctx context.Context, filename string, r io.Reader) 
 		return nil, fmt.Errorf("getting expected version from duckdb: %w", err)
 	}
 
+	if expectedVersion == "" {
+		return nil, fmt.Errorf("vCenter API version not available")
+	}
+
 	// Take major.minor (x.y) only
 	parts := strings.Split(expectedVersion, ".")
 	if len(parts) > 2 {
