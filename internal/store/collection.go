@@ -33,8 +33,7 @@ func NewCollectionStore(db QueryInterceptor) *CollectionStore {
 	return &CollectionStore{db: db}
 }
 
-// List returns all collections matching filter. Pass nil to return all rows.
-// Use ListOption helpers (WithOrderBy, WithOffset, WithLimit) for sorting and pagination.
+// List returns all collections.
 func (s *CollectionStore) List(ctx context.Context) ([]models.Collection, error) {
 	builder := sq.Select(collectionSelectColumns...).From(collectionTable)
 
