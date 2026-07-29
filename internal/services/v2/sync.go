@@ -3,8 +3,12 @@ package v2
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
+	"github.com/kubev2v/migration-planner/pkg/inventory"
+
+	"github.com/kubev2v/assisted-migration-agent/internal/models"
 	"github.com/kubev2v/assisted-migration-agent/internal/store"
 )
 
@@ -42,14 +46,20 @@ func SyncAttached(ctx context.Context, prevSt *store.Store2, attachAlias string,
 }
 
 // RefreshGroupInventories re-evaluates each group's filter expression against the new
-// collection's VMs, rebuilds and persists the group inventory JSON.
-// No outbox events are emitted — the collection's inventory-update event (stage 9) covers this.
-func RefreshGroupInventories(ctx context.Context, newSt *store.Store2, groupSvc *GroupService) error {
+// collection's VMs and persists the recomputed inventory. It returns the groups whose
+// inventory actually changed in this refresh so the caller can emit the
+// appropriate upsert/delete event for just those groups — this function itself emits
+// no outbox events.
+func RefreshGroupInventories(ctx context.Context, newSt *store.Store2, groupSvc *GroupService) ([]models.Group, error) {
 	groups, err := newSt.Group().List(ctx, nil, 0, 0)
 	if err != nil {
-		return fmt.Errorf("listing groups in new collection: %w", err)
+		return nil, fmt.Errorf("listing groups in new collection: %w", err)
 	}
+
+	var changed []models.Group
 	for _, g := range groups {
+		before := g.Inventory
+
 		if err := newSt.WithTx(ctx, func(txCtx context.Context) error {
 			if err := newSt.Group().RefreshMatches(txCtx, g.ID); err != nil {
 				return fmt.Errorf("refreshing matches for group %s: %w", g.ID, err)
@@ -58,14 +68,28 @@ func RefreshGroupInventories(ctx context.Context, newSt *store.Store2, groupSvc 
 			if err != nil {
 				return fmt.Errorf("getting matched IDs for group %s: %w", g.ID, err)
 			}
-			inv, err := groupSvc.buildGroupInventory(txCtx, vmIDs)
-			if err != nil {
-				return fmt.Errorf("building inventory for group %s: %w", g.ID, err)
+
+			var inv *inventory.Inventory
+			if len(vmIDs) > 0 {
+				inv, err = groupSvc.inventoryBuilder.BuildInventory(txCtx, vmIDs)
+				if err != nil {
+					return fmt.Errorf("building filtered inventory: %w", err)
+				}
 			}
-			return newSt.Group().UpdateInventory(txCtx, g.ID, inv)
+
+			if err := newSt.Group().UpdateInventory(txCtx, g.ID, inv); err != nil {
+				return fmt.Errorf("updating inventory for group %s: %w", g.ID, err)
+			}
+
+			g.Inventory = inv
+			return nil
 		}); err != nil {
-			return err
+			return nil, err
+		}
+
+		if !reflect.DeepEqual(before, g.Inventory) {
+			changed = append(changed, g)
 		}
 	}
-	return nil
+	return changed, nil
 }

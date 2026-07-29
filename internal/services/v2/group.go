@@ -137,9 +137,14 @@ func (s *GroupService) Create(ctx context.Context, group models.Group) (*models.
 			return fmt.Errorf("getting matched VM IDs: %w", err)
 		}
 
-		inv, err := s.buildGroupInventory(txCtx, vmIDs)
+		// If group has no VMs we consider it a legal group, but no need to send an inventory in this case
+		if len(vmIDs) == 0 {
+			return nil
+		}
+
+		inv, err := s.inventoryBuilder.BuildInventory(txCtx, vmIDs)
 		if err != nil {
-			return fmt.Errorf("building group inventory: %w", err)
+			return fmt.Errorf("building filtered inventory: %w", err)
 		}
 
 		if err := s.store.Group().UpdateInventory(txCtx, created.ID, inv); err != nil {
@@ -148,16 +153,12 @@ func (s *GroupService) Create(ctx context.Context, group models.Group) (*models.
 
 		created.Inventory = inv
 
-		// Add outbox event for group creation
 		data, err := buildGroupInventoryEventData(created)
 		if err != nil {
-			return fmt.Errorf("building group inventory event payload: %w", err)
-		}
-		if err := s.eventSrv.AddGroupInventoryEvent(txCtx, data); err != nil {
-			return fmt.Errorf("adding group inventory event: %w", err)
+			return fmt.Errorf("building inventory event data: %w", err)
 		}
 
-		return nil
+		return s.eventSrv.AddGroupInventoryEvent(txCtx, data)
 	})
 	if err != nil {
 		return nil, err
@@ -185,9 +186,18 @@ func (s *GroupService) Update(ctx context.Context, id uuid.UUID, group models.Gr
 			return fmt.Errorf("getting matched VM IDs: %w", err)
 		}
 
-		inv, err := s.buildGroupInventory(txCtx, vmIDs)
+		if len(vmIDs) == 0 {
+			data, err := buildGroupInventoryDeleteEventData(updated)
+			if err != nil {
+				return fmt.Errorf("building inventory delete event data: %w", err)
+			}
+
+			return s.eventSrv.AddGroupInventoryDeleteEvent(txCtx, data)
+		}
+
+		inv, err := s.inventoryBuilder.BuildInventory(txCtx, vmIDs)
 		if err != nil {
-			return fmt.Errorf("building group inventory: %w", err)
+			return fmt.Errorf("building filtered inventory: %w", err)
 		}
 
 		if err := s.store.Group().UpdateInventory(txCtx, id, inv); err != nil {
@@ -199,13 +209,10 @@ func (s *GroupService) Update(ctx context.Context, id uuid.UUID, group models.Gr
 		// Add outbox event for group update
 		data, err := buildGroupInventoryEventData(updated)
 		if err != nil {
-			return fmt.Errorf("building group inventory event payload: %w", err)
-		}
-		if err := s.eventSrv.AddGroupInventoryEvent(txCtx, data); err != nil {
-			return fmt.Errorf("adding group inventory event: %w", err)
+			return fmt.Errorf("building inventory event data: %w", err)
 		}
 
-		return nil
+		return s.eventSrv.AddGroupInventoryEvent(txCtx, data)
 	})
 	if err != nil {
 		return nil, err
@@ -222,12 +229,12 @@ func (s *GroupService) Delete(ctx context.Context, id uuid.UUID) error {
 			return err
 		}
 
+		// Add delete event BEFORE actual deletion
 		payload := models.GroupInventoryDeleteEventPayload{
 			GroupID:   id.String(),
 			GroupName: group.Name,
 		}
 
-		// Add delete event BEFORE actual deletion
 		data, err := json.Marshal(payload)
 		if err != nil {
 			return fmt.Errorf("marshaling delete event payload: %w", err)
@@ -244,35 +251,12 @@ func (s *GroupService) Delete(ctx context.Context, id uuid.UUID) error {
 	})
 }
 
-// buildGroupInventory creates a subset inventory containing infrastructure
-// relevant to the VMs matched by the group.
-func (s *GroupService) buildGroupInventory(ctx context.Context, vmIDs []string) (*inventory.Inventory, error) {
-	if len(vmIDs) == 0 {
-		return nil, nil
-	}
-
-	inv, err := s.inventoryBuilder.BuildInventory(ctx, vmIDs)
-	if err != nil {
-		return nil, fmt.Errorf("building filtered inventory: %w", err)
-	}
-
-	return inv, nil
-}
-
-// buildGroupInventoryEventData builds the JSON payload for a group inventory upsert event.
-// Fields like vmsCount and vCenterID are extracted from inventory when processing the event.
-// Always emits a payload, even for empty groups, to ensure cross-system consistency.
 func buildGroupInventoryEventData(group *models.Group) ([]byte, error) {
-	var invJSON json.RawMessage
-	if group.Inventory != nil {
-		apiInventory := converters.ToAPI(group.Inventory)
-		invBytes, err := json.Marshal(apiInventory)
-		if err != nil {
-			return nil, fmt.Errorf("marshaling inventory: %w", err)
-		}
-		invJSON = invBytes
-	} else {
-		invJSON = json.RawMessage("null")
+	apiInventory := converters.ToAPI(group.Inventory)
+
+	invJSON, err := json.Marshal(apiInventory)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling inventory: %w", err)
 	}
 
 	payload := models.GroupInventoryEventPayload{
@@ -281,5 +265,24 @@ func buildGroupInventoryEventData(group *models.Group) ([]byte, error) {
 		Inventory: invJSON,
 	}
 
-	return json.Marshal(payload)
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("building group inventory event payload: %w", err)
+	}
+
+	return data, nil
+}
+
+func buildGroupInventoryDeleteEventData(group *models.Group) ([]byte, error) {
+	payload := models.GroupInventoryDeleteEventPayload{
+		GroupID:   group.ID.String(),
+		GroupName: group.Name,
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("building group inventory delete event payload: %w", err)
+	}
+
+	return data, nil
 }

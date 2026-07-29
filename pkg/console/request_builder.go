@@ -70,25 +70,8 @@ func (b *RequestBuilder) buildGroupInventoryRequest(event models.Event) (func(ct
 		return nil, fmt.Errorf("parsing group UUID: %w", err)
 	}
 
-	// Extract vmsCount from inventory by summing Total VMs across all clusters
-	vmsCount := 0
-	for _, cluster := range payload.Inventory.Clusters {
-		vmsCount += cluster.Vms.Total
-	}
-
-	// If group has 0 VMs, delete it from backend instead of upserting.
-	// This handles both "created empty" and "updated to empty" cases.
-	// DELETE is idempotent (404 = success), so this works whether the
-	// subset exists in the backend or not.
-	if vmsCount == 0 {
-		return func(ctx context.Context) error {
-			return b.client.DeleteSourceSubset(ctx, b.sourceID, subsetID)
-		}, nil
-	}
-
-	// Group has VMs - upsert to backend (creates if missing, updates if exists)
 	return func(ctx context.Context) error {
-		return b.client.UpdateSourceSubset(ctx, b.sourceID, subsetID, payload.GroupName, vmsCount, payload.Inventory)
+		return b.client.UpdateSourceSubset(ctx, b.sourceID, subsetID, payload.GroupName, payload.Inventory)
 	}, nil
 }
 
