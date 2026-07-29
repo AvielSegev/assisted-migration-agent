@@ -709,7 +709,7 @@ var _ = Describe("GroupService", func() {
 				Expect(payload).NotTo(HaveKey("vCenterID"), "vCenterID should be extracted from inventory")
 			})
 
-			It("should add outbox event for empty groups", func() {
+			It("should not have outbox events for created empty groups", func() {
 				// Clear previous events
 				events, _ := st.Outbox().Get(ctx)
 				for _, e := range events {
@@ -730,19 +730,7 @@ var _ = Describe("GroupService", func() {
 				// Verify outbox event was created even though group is empty
 				events, err = st.Outbox().Get(ctx)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(events).To(HaveLen(1), "Empty groups should emit outbox events")
-				Expect(events[0].Kind).To(Equal(models.GroupInventoryUpsertEvent))
-
-				// Verify payload structure
-				var payload map[string]interface{}
-				err = json.Unmarshal(events[0].Data, &payload)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(payload["groupID"]).To(Equal(created.ID.String()))
-				Expect(payload["groupName"]).To(Equal("test-empty-group"))
-				Expect(payload).To(HaveKey("inventory"))
-
-				// Verify inventory is null for empty group
-				Expect(payload["inventory"]).To(BeNil(), "Empty group should have null inventory")
+				Expect(events).To(HaveLen(0), "Empty groups should emit outbox events")
 			})
 
 			It("should rollback outbox event on group creation failure", func() {

@@ -144,19 +144,22 @@ func (c *Client) UpdateSource(ctx context.Context, sourceID, agentID uuid.UUID, 
 
 // UpdateSourceSubset creates or updates a subset inventory
 // PUT /api/v1/sources/{id}/subset/{subsetId}
-func (c *Client) UpdateSourceSubset(ctx context.Context, sourceID, subsetID uuid.UUID, name string, vmsCount int, inv v1.Inventory) error {
+func (c *Client) UpdateSourceSubset(ctx context.Context, sourceID, subsetID uuid.UUID, name string, inv v1.Inventory) error {
 	// Extract vCenter ID from inventory
 	var vcenterID *string
 	if inv.VcenterId != "" {
 		vcenterID = &inv.VcenterId
 	}
 
-	vmsCountPtr := &vmsCount
+	vmsCount := 0
+	for _, cluster := range inv.Clusters {
+		vmsCount += cluster.Vms.Total
+	}
 
 	body := agentAPI.SourceSubsetUpdate{
 		VcenterId: vcenterID,
 		Name:      name,
-		VmsCount:  vmsCountPtr,
+		VmsCount:  &vmsCount,
 		Inventory: inv,
 	}
 

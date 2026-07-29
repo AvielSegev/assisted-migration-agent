@@ -403,11 +403,12 @@ func (f *collectorWorkFactory) Build(creds models.Credentials) work.WorkBuilder2
 				// stages (e.g. Inventory) don't query a closed connection.
 				parser = duckdb_parser.New(newSt.Querier(), f.validator)
 
-				groupSvc := NewGroupService(newSt, parser)
-				if err := RefreshGroupInventories(ctx, newSt, groupSvc); err != nil {
+				changedGroups, err := RefreshGroupInventories(ctx, newSt, NewGroupService(newSt, parser))
+				if err != nil {
 					result.Err = fmt.Errorf("sync: failed to refresh group inventories: %w", err)
 					return result, result.Err
 				}
+				result.ChangedGroups = changedGroups
 
 				log.Info("collection sync completed")
 				return result, nil
@@ -480,7 +481,8 @@ func (f *collectorWorkFactory) Build(creds models.Credentials) work.WorkBuilder2
 				return r, nil
 			},
 		},
-		// 9. Publish: write an inventory-update event to this collection's own outbox.
+		// 9. Publish: write an inventory-update event to this collection's own outbox, plus an
+		// upsert/delete event for every group whose inventory changed during stage 8's refresh.
 		// The outbox lives per-collection (not in main) — mutations only ever happen against
 		// the latest collection (see ServiceManager.Latest*Service()), and Console reads/clears
 		// events via ServiceManager.LatestEventService(), which always resolves to this same DB.
@@ -494,10 +496,38 @@ func (f *collectorWorkFactory) Build(creds models.Credentials) work.WorkBuilder2
 					r.Err = fmt.Errorf("getting collection store: %w", err)
 					return r, r.Err
 				}
-				if err := NewEventService(st).AddInventoryUpdateEvent(ctx, r.Inventory); err != nil {
+				eventSrv := NewEventService(st)
+				if err := eventSrv.AddInventoryUpdateEvent(ctx, r.Inventory); err != nil {
 					r.Err = err
 					return r, err
 				}
+
+				for i := range r.ChangedGroups {
+					g := &r.ChangedGroups[i]
+					if g.Inventory == nil {
+						data, err := buildGroupInventoryDeleteEventData(g)
+						if err != nil {
+							r.Err = fmt.Errorf("building inventory delete event data for group %s: %w", g.ID, err)
+							return r, r.Err
+						}
+						if err := eventSrv.AddGroupInventoryDeleteEvent(ctx, data); err != nil {
+							r.Err = fmt.Errorf("adding group delete event for group %s: %w", g.ID, err)
+							return r, r.Err
+						}
+						continue
+					}
+
+					data, err := buildGroupInventoryEventData(g)
+					if err != nil {
+						r.Err = fmt.Errorf("building inventory event data for group %s: %w", g.ID, err)
+						return r, r.Err
+					}
+					if err := eventSrv.AddGroupInventoryEvent(ctx, data); err != nil {
+						r.Err = fmt.Errorf("adding group inventory event for group %s: %w", g.ID, err)
+						return r, r.Err
+					}
+				}
+
 				r.Completed = true
 				return r, nil
 			},

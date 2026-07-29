@@ -224,16 +224,20 @@ func (s *VMService) buildAndSaveGroupInventory(ctx context.Context, groupID uuid
 	}
 	group.Inventory = inv
 
+	if inv == nil {
+		data, err := buildGroupInventoryDeleteEventData(group)
+		if err != nil {
+			return fmt.Errorf("building inventory delete event data: %w", err)
+		}
+		return s.eventSrv.AddGroupInventoryDeleteEvent(ctx, data)
+	}
+
 	data, err := buildGroupInventoryEventData(group)
 	if err != nil {
-		return fmt.Errorf("marshaling event payload for group %s: %w", groupID, err)
+		return fmt.Errorf("building inventory event data: %w", err)
 	}
 
-	if err := s.eventSrv.AddGroupInventoryEvent(ctx, data); err != nil {
-		return fmt.Errorf("adding group inventory event for group %s: %w", groupID, err)
-	}
-
-	return nil
+	return s.eventSrv.AddGroupInventoryEvent(ctx, data)
 }
 
 // deduplicateStrings removes duplicate strings from a slice while preserving order.
