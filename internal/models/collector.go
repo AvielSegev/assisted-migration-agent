@@ -90,9 +90,10 @@ type CollectorStatus struct {
 // Completed is false by default; the last work unit sets it to true on success.
 // Finalize uses it to distinguish cancel (pipeline stopped before last unit) from completion.
 type CollectorResult struct {
-	Err        error
-	Completed  bool
-	SQLitePath string
-	Inventory  []byte
-	Client     *govmomi.Client
+	Err           error
+	Completed     bool
+	SQLitePath    string
+	Inventory     []byte
+	Client        *govmomi.Client
+	ChangedGroups []Group
 }

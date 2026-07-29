@@ -232,7 +232,8 @@ var _ = Describe("Collection sync", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			groupSvc := v2.NewGroupService(newSt, &mockInventoryBuilder{})
-			Expect(v2.RefreshGroupInventories(ctx, newSt, groupSvc)).To(Succeed())
+			_, err = v2.RefreshGroupInventories(ctx, newSt, groupSvc)
+			Expect(err).To(BeNil())
 
 			vmIDs, err := newSt.Group().GetMatchedIDs(ctx, groupID)
 			Expect(err).NotTo(HaveOccurred())
