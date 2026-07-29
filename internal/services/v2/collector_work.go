@@ -60,8 +60,8 @@ func newCollectorWorkFactory(pool *store.Pool, dataDir string, validator *opa.Va
 //     6b. Rightsizing: query + persist — query vCenter metrics, persist batches in a loop.
 //     6c. Rightsizing: warnings — persist VMs that returned no metrics data.
 //     6d. Rightsizing: utilization — compute per-VM utilization percentages.
-//  7. Inventory — build the inventory JSON with embedded cluster utilization and persist.
-//  8. Sync with the previous collection — copy groups, labels and exclusions from the previous collection.
+//  7. Sync with the previous collection — copy groups, labels and exclusions from the previous collection.
+//  8. Inventory — build the inventory JSON with embedded cluster utilization and persist.
 //  9. Publish — write an inventory-update event to the outbox.
 func (f *collectorWorkFactory) Build(creds models.Credentials) work.WorkBuilder2[models.CollectorStatus, models.CollectorResult] {
 	log := zap.S().Named("collector_service")
@@ -331,7 +331,89 @@ func (f *collectorWorkFactory) Build(creds models.Credentials) work.WorkBuilder2
 				return r, nil
 			},
 		},
-		// 7. Inventory: build the inventory JSON with embedded cluster utilization and persist.
+		// 7. Sync user data from the previous collection into the new one.
+		// Attach the (closed) new collection DB to the previous collection's connection,
+		// run cross-DB SQL to copy groups, labels, and migration exclusion flags, then
+		// detach and reopen the new DB to refresh group inventories.
+		// If no previous collection exists, this stage is a no-op.
+		// Any failure here fails the collection — a collection without user data (groups,
+		// labels, exclusion flags) is considered invalid and should not be published.
+		//
+		// This runs before the Inventory stage so that the persisted/published inventory
+		// (which embeds per-VM MigrationExcluded and Labels) reflects the synced data
+		// instead of the new collection's pre-sync defaults.
+		{
+			Status: func() models.CollectorStatus {
+				return models.CollectorStatus{State: models.CollectorStateCollecting}
+			},
+			Work: func(ctx context.Context, result models.CollectorResult) (models.CollectorResult, error) {
+				prevDB, ok := f.pool.LatestCollection()
+				if !ok {
+					log.Info("no previous collection found, skipping sync")
+					return result, nil
+				}
+
+				log.Infow("syncing user data from previous collection", "previous_id", prevDB.ID)
+				now := time.Now()
+
+				prevSt, err := prevDB.Store()
+				if err != nil {
+					result.Err = fmt.Errorf("sync: failed to open previous collection store: %w", err)
+					return result, result.Err
+				}
+
+				const attachedSchema = "new_col"
+
+				// DuckDB requires the file to be closed before it can be attached to another connection.
+				// collectionDb.Store() in subsequent steps transparently reopens it.
+				if err := collectionDb.Close(); err != nil {
+					result.Err = fmt.Errorf("sync: failed to close collection database before attach: %w", err)
+					return result, result.Err
+				}
+
+				if err := prevSt.AttachDatabase(ctx, collectionDb, attachedSchema, store.ReadWriteDatabase); err != nil {
+					result.Err = fmt.Errorf("sync: failed to attach collection database: %w", err)
+					return result, result.Err
+				}
+
+				syncErr := SyncAttached(ctx, prevSt, attachedSchema, now)
+
+				if detachErr := prevSt.DetachDatabase(ctx, attachedSchema); detachErr != nil {
+					log.Errorw("failed to detach collection database", "error", detachErr)
+					if syncErr == nil {
+						syncErr = fmt.Errorf("sync: failed to detach collection database: %w", detachErr)
+					}
+				}
+
+				if syncErr != nil {
+					result.Err = syncErr
+					return result, result.Err
+				}
+
+				// Reopen the collection DB (transparently reconnects after the Close() above)
+				// and refresh group inventories against the new VM set.
+				newSt, err := collectionDb.Store()
+				if err != nil {
+					result.Err = fmt.Errorf("sync: failed to reopen collection database for group refresh: %w", err)
+					return result, result.Err
+				}
+
+				// The Close() above invalidated the connection parser was bound to at
+				// provisioning time; rebind it to the reopened store so this and later
+				// stages (e.g. Inventory) don't query a closed connection.
+				parser = duckdb_parser.New(newSt.Querier(), f.validator)
+
+				groupSvc := NewGroupService(newSt, parser)
+				if err := RefreshGroupInventories(ctx, newSt, groupSvc); err != nil {
+					result.Err = fmt.Errorf("sync: failed to refresh group inventories: %w", err)
+					return result, result.Err
+				}
+
+				log.Info("collection sync completed")
+				return result, nil
+			},
+		},
+		// 8. Inventory: build the inventory JSON with embedded cluster utilization and persist.
 		{
 			Status: func() models.CollectorStatus {
 				return models.CollectorStatus{State: models.CollectorStateParsing}
@@ -396,79 +478,6 @@ func (f *collectorWorkFactory) Build(creds models.Credentials) work.WorkBuilder2
 				log.Info("successfully created inventory with clusters")
 				r.Inventory = invBytes
 				return r, nil
-			},
-		},
-		// 8. Sync user data from the previous collection into the new one.
-		// Attach the (closed) new collection DB to the previous collection's connection,
-		// run cross-DB SQL to copy groups, labels, and migration exclusion flags, then
-		// detach and reopen the new DB to refresh group inventories.
-		// If no previous collection exists, this stage is a no-op.
-		// Any failure here fails the collection — a collection without user data (groups,
-		// labels, exclusion flags) is considered invalid and should not be published.
-		{
-			Status: func() models.CollectorStatus {
-				return models.CollectorStatus{State: models.CollectorStateCollecting}
-			},
-			Work: func(ctx context.Context, result models.CollectorResult) (models.CollectorResult, error) {
-				prevDB, ok := f.pool.LatestCollection()
-				if !ok {
-					log.Info("no previous collection found, skipping sync")
-					return result, nil
-				}
-
-				log.Infow("syncing user data from previous collection", "previous_id", prevDB.ID)
-				now := time.Now()
-
-				prevSt, err := prevDB.Store()
-				if err != nil {
-					result.Err = fmt.Errorf("sync: failed to open previous collection store: %w", err)
-					return result, result.Err
-				}
-
-				const attachedSchema = "new_col"
-
-				// DuckDB requires the file to be closed before it can be attached to another connection.
-				// collectionDb.Store() in subsequent steps transparently reopens it.
-				if err := collectionDb.Close(); err != nil {
-					result.Err = fmt.Errorf("sync: failed to close collection database before attach: %w", err)
-					return result, result.Err
-				}
-
-				if err := prevSt.AttachDatabase(ctx, collectionDb, attachedSchema, store.ReadWriteDatabase); err != nil {
-					result.Err = fmt.Errorf("sync: failed to attach collection database: %w", err)
-					return result, result.Err
-				}
-
-				syncErr := SyncAttached(ctx, prevSt, attachedSchema, now)
-
-				if detachErr := prevSt.DetachDatabase(ctx, attachedSchema); detachErr != nil {
-					log.Errorw("failed to detach collection database", "error", detachErr)
-					if syncErr == nil {
-						syncErr = fmt.Errorf("sync: failed to detach collection database: %w", detachErr)
-					}
-				}
-
-				if syncErr != nil {
-					result.Err = syncErr
-					return result, result.Err
-				}
-
-				// Reopen the collection DB (transparently reconnects after the Close() above)
-				// and refresh group inventories against the new VM set.
-				newSt, err := collectionDb.Store()
-				if err != nil {
-					result.Err = fmt.Errorf("sync: failed to reopen collection database for group refresh: %w", err)
-					return result, result.Err
-				}
-
-				groupSvc := NewGroupService(newSt, parser)
-				if err := RefreshGroupInventories(ctx, newSt, groupSvc); err != nil {
-					result.Err = fmt.Errorf("sync: failed to refresh group inventories: %w", err)
-					return result, result.Err
-				}
-
-				log.Info("collection sync completed")
-				return result, nil
 			},
 		},
 		// 9. Publish: write an inventory-update event to this collection's own outbox.
