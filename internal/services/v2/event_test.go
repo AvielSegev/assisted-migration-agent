@@ -93,7 +93,7 @@ var _ = Describe("EventService", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(events).To(HaveLen(2))
 
-		Expect(srv.Delete(ctx, events[0].ID)).To(Succeed())
+		Expect(srv.DeleteUpTo(ctx, events[0].ID)).To(Succeed())
 
 		remaining, err := srv.Events(ctx)
 		Expect(err).NotTo(HaveOccurred())

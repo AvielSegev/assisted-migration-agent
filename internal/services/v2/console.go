@@ -20,8 +20,7 @@ import (
 )
 
 const (
-	maxBackoffInterval        = 60 * time.Second
-	initialState       string = "pending"
+	maxBackoffInterval = 60 * time.Second
 )
 
 type (
@@ -157,8 +156,9 @@ func (c *Console) Status() models.ConsoleStatus {
 //
 // On each tick it creates a fresh pipeline by draining the outbox. The pipeline
 // always starts with a status update unit. If events exist, RequestBuilder maps
-// each one to an API call, and a final cleanup unit deletes the processed events.
-// The scheduler is created once and shared across all pipelines in the loop.
+// each one to an API call, and each event is cleared from the outbox as soon
+// as its call succeeds. The scheduler is created once and shared across all
+// pipelines in the loop.
 //
 // Loop structure:
 //
@@ -312,13 +312,12 @@ func (c *Console) createPipeline(s *scheduler.Scheduler[any]) (*work.Pipeline[st
 	}
 
 	if len(events) == 0 {
-		return work.NewPipeline(initialState, s, work.NewSliceWorkBuilder(units)), nil
+		return work.NewPipeline(models.ConsolePipelineInitialState, s, work.NewSliceWorkBuilder(units)), nil
 	}
 
-	lastID := 0
 	for _, e := range events {
 		units = append(units, consoleWorkUnit{
-			Status: func() string { return "event" },
+			Status: func() string { return models.ConsolePipelineEventStage },
 			Work: func(ctx context.Context, r any) (any, error) {
 				fn, err := c.requestBuilder.Build(e)
 				if err != nil {
@@ -328,20 +327,15 @@ func (c *Console) createPipeline(s *scheduler.Scheduler[any]) (*work.Pipeline[st
 					}
 					return nil, err
 				}
-				return nil, fn(ctx)
+				if err := fn(ctx); err != nil {
+					return nil, err
+				}
+				return nil, eventSrv.DeleteUpTo(ctx, e.ID)
 			},
 		})
-		lastID = e.ID
 	}
 
-	units = append(units, consoleWorkUnit{
-		Status: func() string { return "clear" },
-		Work: func(ctx context.Context, r any) (any, error) {
-			return nil, eventSrv.Delete(ctx, lastID)
-		},
-	})
-
-	return work.NewPipeline(initialState, s, work.NewSliceWorkBuilder(units)), nil
+	return work.NewPipeline(models.ConsolePipelineInitialState, s, work.NewSliceWorkBuilder(units)), nil
 }
 
 // consoleState holds the console status with its own mutex for thread-safe access.
