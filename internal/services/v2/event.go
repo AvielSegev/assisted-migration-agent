@@ -19,7 +19,7 @@ func (es *EventService) Events(ctx context.Context) ([]models.Event, error) {
 	return es.store.Outbox().Get(ctx)
 }
 
-func (es *EventService) Delete(ctx context.Context, maxID int) error {
+func (es *EventService) DeleteUpTo(ctx context.Context, maxID int) error {
 	return es.store.Outbox().Delete(ctx, maxID)
 }
 
