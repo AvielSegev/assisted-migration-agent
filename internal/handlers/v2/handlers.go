@@ -11,6 +11,7 @@ type ServiceProvider interface {
 	InspectorService() (*svc.InspectorService, error)
 	VddkService() *svc.VddkService
 	CredentialsService() *svc.CredentialsService
+	ForecasterService() *svc.ForecasterService
 
 	ApplicationService(collectionID string) (*svc.ApplicationService, error)
 	ComparisonService(aId, bId string) (*svc.ComparisonService, error)
