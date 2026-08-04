@@ -12,6 +12,8 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/kubev2v/migration-planner/api/v1alpha1"
+
 	v2 "github.com/kubev2v/assisted-migration-agent/api/v2"
 )
 
@@ -686,6 +688,30 @@ func (a *AgentSvc) DeleteLabelGlobally(label string) (*v2.DeleteLabelGloballyRes
 		return nil, fmt.Errorf("decoding response: %w", err)
 	}
 	return &result, nil
+}
+
+// Inventory retrieves the inventory from the latest collection.
+func (a *AgentSvc) Inventory() (*v1alpha1.Inventory, error) {
+	resp, err := a.doGet("/api/v2/inventory")
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var inventory v1alpha1.Inventory
+	if err := json.NewDecoder(resp.Body).Decode(&inventory); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+	return &inventory, nil
 }
 
 // --- Helpers ---
