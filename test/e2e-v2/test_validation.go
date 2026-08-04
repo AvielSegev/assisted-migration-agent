@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -92,20 +91,6 @@ var _ = ginkgo.Describe("API validation v2 e2e tests", ginkgo.Ordered, func() {
 			ginkgo.GinkgoWriter.Println("Starting vcsim for group validation tests...")
 			err := infraManager.StartVcsim()
 			gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to start vcsim")
-
-			client := &http.Client{
-				Transport: &http.Transport{
-					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-				},
-			}
-			gm.Eventually(func() error {
-				resp, err := client.Get(infra.VcsimURL)
-				if err != nil {
-					return err
-				}
-				_ = resp.Body.Close()
-				return nil
-			}, 30*time.Second, 1*time.Second).Should(gm.BeNil(), "vcsim did not become ready")
 
 			ginkgo.GinkgoWriter.Println("Storing credentials...")
 			_, err = agentSvc.StoreCredentials(infra.VcsimURL, infra.VcsimUsername, infra.VcsimPassword)

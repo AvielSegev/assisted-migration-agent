@@ -22,6 +22,11 @@ type AgentSvc struct {
 	httpClient *http.Client
 }
 
+type ComparisonDiffParams struct {
+	Page     *int
+	PageSize *int
+}
+
 func DefaultAgentSvc(baseURL string) *AgentSvc {
 	return &AgentSvc{
 		baseURL: baseURL,
@@ -262,6 +267,66 @@ func (a *AgentSvc) ListCollections() (*v2.CollectionListResponse, error) {
 	}
 
 	var result v2.CollectionListResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+	return &result, nil
+}
+
+// CompareCollections returns aggregates and per-dimension diffs between two collections.
+// aId is treated as the baseline ("A") and bId as the comparison target ("B").
+func (a *AgentSvc) CompareCollections(aId, bId string) (*v2.CollectionComparisonSummary, error) {
+	path := fmt.Sprintf("/api/v2/collections/compare/%s/%s", url.PathEscape(aId), url.PathEscape(bId))
+	resp, err := a.doGet(path)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var result v2.CollectionComparisonSummary
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+	return &result, nil
+}
+
+// CompareCollectionsDiff returns the paginated onlyInA/onlyInB VM-ID lists for a single
+// comparison dimension between two collections (aId baseline, bId target).
+func (a *AgentSvc) CompareCollectionsDiff(aId, bId string, dimension v2.CompareCollectionsDiffParamsDimension, params *ComparisonDiffParams) (*v2.CollectionComparisonDiff, error) {
+	path := fmt.Sprintf("/api/v2/collections/compare/%s/%s/%s", url.PathEscape(aId), url.PathEscape(bId), url.PathEscape(string(dimension)))
+	req, err := http.NewRequest(http.MethodGet, a.baseURL+path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	if params != nil {
+		q := req.URL.Query()
+		if params.Page != nil {
+			q.Set("page", strconv.Itoa(*params.Page))
+		}
+		if params.PageSize != nil {
+			q.Set("pageSize", strconv.Itoa(*params.PageSize))
+		}
+		req.URL.RawQuery = q.Encode()
+	}
+
+	resp, err := a.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("sending request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var result v2.CollectionComparisonDiff
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("decoding response: %w", err)
 	}

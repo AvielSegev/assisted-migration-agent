@@ -1,7 +1,7 @@
 package main
 
 import (
-	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -10,13 +10,15 @@ import (
 
 	"github.com/kubev2v/assisted-migration-agent/pkg/e2e/backend"
 	"github.com/kubev2v/assisted-migration-agent/pkg/e2e/infra"
+	"github.com/kubev2v/assisted-migration-agent/pkg/e2e/vcsim"
 	"github.com/kubev2v/assisted-migration-agent/test/e2e-v2/service"
 
 	"github.com/google/uuid"
-	"github.com/kubev2v/migration-planner/api/v1alpha1"
+	agentAPI "github.com/kubev2v/migration-planner/api/v1alpha1/agent"
 	"github.com/onsi/ginkgo/v2"
 	gm "github.com/onsi/gomega"
 
+	"github.com/kubev2v/migration-planner/api/v1alpha1"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
@@ -257,24 +259,6 @@ var _ = ginkgo.Describe("Connected env v2 e2e tests", ginkgo.Ordered, func() {
 			ginkgo.GinkgoWriter.Println("Starting vcsim...")
 			err := infraManager.StartVcsim()
 			gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to start vcsim")
-			time.Sleep(1 * time.Second)
-
-			client := &http.Client{
-				Transport: &http.Transport{
-					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-				},
-			}
-			gm.Eventually(func() error {
-				resp, err := client.Get(infra.VcsimURL)
-				if err != nil {
-					return err
-				}
-				defer func() { _ = resp.Body.Close() }()
-				if resp.StatusCode >= 500 {
-					return fmt.Errorf("server error: %d", resp.StatusCode)
-				}
-				return nil
-			}, 30*time.Second, 1*time.Second).Should(gm.BeNil())
 
 			agentSvc = service.DefaultAgentSvc(cfg.AgentAPIUrl)
 			userSvc = plannerSvc.WithAuthUser("admin", "admin", "admin@example.com")
@@ -473,6 +457,173 @@ var _ = ginkgo.Describe("Connected env v2 e2e tests", ginkgo.Ordered, func() {
 			time.Sleep(3 * time.Second)
 			gm.Expect(subsetRequestCount()).To(gm.Equal(countBeforeRestart),
 				"expected no duplicate subset delivery after restart")
+		})
+	})
+
+	ginkgo.Context("multiple collections", func() {
+		var (
+			agentSvc *service.AgentSvc
+			sourceID openapi_types.UUID
+			userSvc  *backend.PlannerSvc
+		)
+
+		ginkgo.BeforeEach(func() {
+			ginkgo.GinkgoWriter.Println("Starting vcsim...")
+			err := infraManager.StartVcsim()
+			gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to start vcsim")
+
+			agentSvc = service.DefaultAgentSvc(cfg.AgentAPIUrl)
+			userSvc = plannerSvc.WithAuthUser("admin", "admin", "admin@example.com")
+
+			source, err := userSvc.CreateSource("test-source-" + uuid.NewString()[:8])
+			gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to create source")
+			sourceID = source.Id
+			ginkgo.GinkgoWriter.Printf("Created source: %s\n", sourceID)
+		})
+
+		ginkgo.AfterEach(func() {
+			if ginkgo.CurrentSpecReport().Failed() {
+				ginkgo.GinkgoWriter.Println("Keeping containers running (test failed)")
+				return
+			}
+			ginkgo.GinkgoWriter.Println("Stopping agent...")
+			_ = infraManager.RemoveAgent()
+
+			ginkgo.GinkgoWriter.Println("Deleting source...")
+			_ = userSvc.RemoveSource(sourceID)
+
+			ginkgo.GinkgoWriter.Println("Stopping vcsim...")
+			_ = infraManager.StopVcsim()
+		})
+
+		// totalVMs sums VM counts across every cluster in an inventory.
+		totalVMs := func(inv *v1alpha1.Inventory) int {
+			if inv == nil {
+				return 0
+			}
+			total := 0
+			for _, c := range inv.Clusters {
+				total += c.Vms.Total
+			}
+			return total
+		}
+
+		// subsetVMsCount returns the vmsCount reported in the most recent subset
+		// push observed for groupID, and whether any such push was observed at all.
+		subsetVMsCount := func(groupID string) (int, bool) {
+			count := 0
+			found := false
+			for _, r := range obs.Requests() {
+				if !strings.Contains(r.Request.URL.Path, "subset") || !strings.Contains(r.Request.URL.Path, groupID) {
+					continue
+				}
+				var payload agentAPI.SourceSubsetUpdate
+				if err := json.Unmarshal(r.RequestBody, &payload); err != nil {
+					continue
+				}
+				if payload.VmsCount != nil {
+					count = *payload.VmsCount
+					found = true
+				}
+			}
+			return count, found
+		}
+
+		// Given an agent in connected mode with a successful collection and a group
+		// matching the collected VMs
+		// When a VM is added to the vCenter inventory and a second collection runs
+		// Then both the group's subset and the source's main inventory on the
+		// backend should reflect the additional VM
+		ginkgo.It("should update both the group subset and the main inventory after a new collection adds a VM", func() {
+			agentID := uuid.NewString()
+			_, err := infraManager.StartAgent(infra.AgentConfig{
+				AgentID:        agentID,
+				SourceID:       sourceID.String(),
+				Mode:           "connected",
+				ConsoleURL:     "http://localhost:8081",
+				APIVersion:     "v2",
+				UpdateInterval: "1s",
+			})
+			gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to start agent")
+			ginkgo.GinkgoWriter.Printf("Agent started with ID: %s\n", agentID)
+
+			gm.Eventually(func() error {
+				_, err := agentSvc.Status()
+				return err
+			}, 30*time.Second, 1*time.Second).Should(gm.BeNil())
+
+			ginkgo.GinkgoWriter.Println("Storing credentials...")
+			_, err = agentSvc.StoreCredentials(infra.VcsimURL, infra.VcsimUsername, infra.VcsimPassword)
+			gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to store credentials")
+
+			ginkgo.GinkgoWriter.Println("Starting first collector run...")
+			_, err = agentSvc.StartCollector()
+			gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to start collector")
+
+			gm.Eventually(func() int {
+				collections, err := agentSvc.ListCollections()
+				if err != nil {
+					return 0
+				}
+				return len(collections.Collections)
+			}, 120*time.Second, 2*time.Second).Should(gm.BeNumerically(">", 0), "expected at least 1 collection")
+
+			ginkgo.GinkgoWriter.Println("Creating group matching every collected VM...")
+			group, err := agentSvc.CreateGroup("connected-multi-collection-group", "memory >= 0", "matches every collected VM")
+			gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to create group")
+			defer func() { _, _ = agentSvc.DeleteGroup(group.Id) }()
+
+			gm.Eventually(func() bool {
+				_, found := subsetVMsCount(group.Id)
+				return found
+			}, 15*time.Second, 1*time.Second).Should(gm.BeTrue(), "expected initial subset to be pushed to backend")
+			subsetCountBefore, _ := subsetVMsCount(group.Id)
+			ginkgo.GinkgoWriter.Printf("Initial subset VM count: %d\n", subsetCountBefore)
+
+			gm.Eventually(func() int {
+				source, err := userSvc.GetSource(sourceID)
+				if err != nil {
+					return -1
+				}
+				return totalVMs(source.Inventory)
+			}, 15*time.Second, 1*time.Second).Should(gm.BeNumerically(">", 0), "expected the main inventory to be populated on the backend")
+			source, err := userSvc.GetSource(sourceID)
+			gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to get source")
+			mainInventoryCountBefore := totalVMs(source.Inventory)
+			ginkgo.GinkgoWriter.Printf("Initial main inventory VM count: %d\n", mainInventoryCountBefore)
+
+			ginkgo.GinkgoWriter.Println("Adding a VM to the vcsim inventory...")
+			_, err = infraManager.AddVMs([]vcsim.VM{{Name: "connected-multi-collection-vm"}})
+			gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to add VM to vcsim inventory")
+
+			ginkgo.GinkgoWriter.Println("Starting a second collector run...")
+			_, err = agentSvc.StartCollector()
+			gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to start second collector run")
+
+			gm.Eventually(func() int {
+				collections, err := agentSvc.ListCollections()
+				if err != nil {
+					return 0
+				}
+				return len(collections.Collections)
+			}, 120*time.Second, 2*time.Second).Should(gm.BeNumerically(">", 1), "expected a second collection")
+
+			// Assert - the group subset pushed to the backend reflects the additional VM
+			gm.Eventually(func() int {
+				count, _ := subsetVMsCount(group.Id)
+				return count
+			}, 30*time.Second, 1*time.Second).Should(gm.BeNumerically(">", subsetCountBefore),
+				"expected the backend subset to reflect the additional VM after the second collection")
+
+			// Assert - the source's main inventory on the backend also reflects the additional VM
+			gm.Eventually(func() int {
+				source, err := userSvc.GetSource(sourceID)
+				if err != nil {
+					return -1
+				}
+				return totalVMs(source.Inventory)
+			}, 30*time.Second, 1*time.Second).Should(gm.BeNumerically(">", mainInventoryCountBefore),
+				"expected the backend main inventory to reflect the additional VM after the second collection")
 		})
 	})
 

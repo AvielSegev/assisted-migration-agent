@@ -1,8 +1,15 @@
 package infra
 
 import (
+	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
+	"net/http"
+	"os"
+	"time"
+
+	"github.com/kubev2v/assisted-migration-agent/pkg/e2e/vcsim"
 )
 
 const (
@@ -25,26 +32,26 @@ const (
 
 // ContainerInfraManager implements InfraManager using Podman containers.
 type ContainerInfraManager struct {
-	runner         *PodmanRunner
-	backendImage   string
-	agentImage     string
-	isoPath        string
-	vcsimModelPath string
-	oidc           *OIDCServer
+	runner        *PodmanRunner
+	backendImage  string
+	agentImage    string
+	isoPath       string
+	oidc          *OIDCServer
+	vcsimDataset  *vcsim.Dataset
+	vcsimModelDir string
 }
 
 // NewContainerInfraManager creates a new ContainerInfraManager.
-func NewContainerInfraManager(podmanSocket, backendImage, agentImage, isoPath, vcsimModelPath string) (*ContainerInfraManager, error) {
+func NewContainerInfraManager(podmanSocket, backendImage, agentImage, isoPath string) (*ContainerInfraManager, error) {
 	runner, err := NewPodmanRunner(podmanSocket)
 	if err != nil {
 		return nil, err
 	}
 	return &ContainerInfraManager{
-		runner:         runner,
-		backendImage:   backendImage,
-		agentImage:     agentImage,
-		isoPath:        isoPath,
-		vcsimModelPath: vcsimModelPath,
+		runner:       runner,
+		backendImage: backendImage,
+		agentImage:   agentImage,
+		isoPath:      isoPath,
 	}, nil
 }
 
@@ -127,32 +134,98 @@ func (c *ContainerInfraManager) StopBackend() error {
 	return c.runner.RemoveContainer(backendContainerName)
 }
 
+// StartVcsim generates a vcsim model seeded with the standard 50-VM
+// inventory (vcsim.DefaultInventory) and starts vcsim loaded from it. The
+// inventory can be grown or shrunk at runtime via AddVMs/RemoveVM, which
+// regenerate the model and restart the container.
 func (c *ContainerInfraManager) StartVcsim() error {
-	cfg := NewContainerConfig(vcsimContainerName, vcsimImage).
-		WithPort(vcsimPort, vcsimPort)
-
-	if c.vcsimModelPath == "" {
-		return errors.New("vcsim model path is empty")
+	modelDir, err := os.MkdirTemp("", "vcsim-model-*")
+	if err != nil {
+		return fmt.Errorf("creating vcsim model dir: %w", err)
 	}
-	// Use -load flag to load pre-generated model from XML files
-	cfg = cfg.
-		WithBindMount(c.vcsimModelPath, "/model").
-		WithCmd(
-			"-l", ":8989",
-			"-username", VcsimUsername,
-			"-password", VcsimPassword,
-			"-load", "/model",
-		)
 
-	_, err := c.runner.StartContainer(cfg)
-	return err
+	gen, err := vcsim.NewDataset(modelDir)
+	if err != nil {
+		return fmt.Errorf("creating vcsim dataset: %w", err)
+	}
+	gen.AddVMs(vcsim.DefaultInventory())
+	if err := gen.GenerateXML(); err != nil {
+		return fmt.Errorf("generating vcsim model: %w", err)
+	}
+
+	c.vcsimDataset = gen
+	c.vcsimModelDir = modelDir
+
+	if _, err := c.runner.StartContainer(c.vcsimContainerConfig()); err != nil {
+		return fmt.Errorf("starting vcsim container: %w", err)
+	}
+	return waitReady(VcsimURL, 30*time.Second)
 }
 
 func (c *ContainerInfraManager) StopVcsim() error {
 	if err := c.runner.StopContainer(vcsimContainerName); err != nil {
 		return err
 	}
-	return c.runner.RemoveContainer(vcsimContainerName)
+	if err := c.runner.RemoveContainer(vcsimContainerName); err != nil {
+		return err
+	}
+	if c.vcsimModelDir != "" {
+		_ = os.RemoveAll(c.vcsimModelDir)
+	}
+	c.vcsimDataset = nil
+	c.vcsimModelDir = ""
+	return nil
+}
+
+func (c *ContainerInfraManager) AddVMs(vms []vcsim.VM) ([]vcsim.VM, error) {
+	if c.vcsimDataset == nil {
+		return nil, errors.New("vcsim not started")
+	}
+	created := c.vcsimDataset.AddVMs(vms)
+	if err := c.regenerateAndRestartVcsim(); err != nil {
+		return nil, err
+	}
+	return created, nil
+}
+
+func (c *ContainerInfraManager) RemoveVM(name string) error {
+	if c.vcsimDataset == nil {
+		return errors.New("vcsim not started")
+	}
+	if !c.vcsimDataset.RemoveVM(name) {
+		return fmt.Errorf("VM %q not found", name)
+	}
+	return c.regenerateAndRestartVcsim()
+}
+
+func (c *ContainerInfraManager) regenerateAndRestartVcsim() error {
+	if err := c.vcsimDataset.GenerateXML(); err != nil {
+		return fmt.Errorf("generating vcsim model: %w", err)
+	}
+	if err := c.runner.StopContainer(vcsimContainerName); err != nil {
+		return fmt.Errorf("stopping vcsim: %w", err)
+	}
+	if err := c.runner.RemoveContainer(vcsimContainerName); err != nil {
+		return fmt.Errorf("removing vcsim: %w", err)
+	}
+	// Wait for the port to be released by the container runtime's networking stack.
+	time.Sleep(2 * time.Second)
+	if _, err := c.runner.StartContainer(c.vcsimContainerConfig()); err != nil {
+		return fmt.Errorf("restarting vcsim: %w", err)
+	}
+	return waitReady(VcsimURL, 30*time.Second)
+}
+
+func (c *ContainerInfraManager) vcsimContainerConfig() *ContainerConfig {
+	return NewContainerConfig(vcsimContainerName, vcsimImage).
+		WithPort(vcsimPort, vcsimPort).
+		WithBindMount(c.vcsimModelDir, "/model").
+		WithCmd(
+			"-l", fmt.Sprintf(":%d", vcsimPort),
+			"-username", VcsimUsername,
+			"-password", VcsimPassword,
+			"-load", "/model",
+		)
 }
 
 func (c *ContainerInfraManager) StartAgent(cfg AgentConfig) (string, error) {
@@ -193,4 +266,34 @@ func (c *ContainerInfraManager) RemoveAgent() error {
 	_ = c.runner.StopContainer(agentContainerName)
 	_ = c.runner.RemoveContainer(agentContainerName)
 	return c.runner.RemoveVolume(agentVolumeName)
+}
+
+// waitReady polls url until it responds or timeout elapses.
+func waitReady(url string, timeout time.Duration) error {
+	client := &http.Client{
+		Timeout: 2 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("vcsim did not become ready within %s", timeout)
+		case <-ticker.C:
+			resp, err := client.Get(url)
+			if err != nil {
+				continue
+			}
+			_ = resp.Body.Close()
+			return nil
+		}
+	}
 }

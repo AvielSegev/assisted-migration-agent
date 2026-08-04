@@ -1,6 +1,11 @@
 package infra
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+
+	"github.com/kubev2v/assisted-migration-agent/pkg/e2e/vcsim"
+)
 
 // VMInfraManager implements InfraManager for VM-based deployments.
 // Infrastructure (Postgres, backend, vcsim, agent) is managed externally
@@ -47,6 +52,14 @@ func (v *VMInfraManager) StopVcsim() error     { return nil }
 func (v *VMInfraManager) StopAgent() error     { return nil }
 func (v *VMInfraManager) RestartAgent() error  { return nil }
 func (v *VMInfraManager) RemoveAgent() error   { return nil }
+
+func (v *VMInfraManager) AddVMs(_ []vcsim.VM) ([]vcsim.VM, error) {
+	return nil, errors.New("mutable vcsim is not supported in vm mode")
+}
+
+func (v *VMInfraManager) RemoveVM(_ string) error {
+	return errors.New("mutable vcsim is not supported in vm mode")
+}
 
 func (v *VMInfraManager) StartAgent(_ AgentConfig) (string, error) {
 	return "", nil

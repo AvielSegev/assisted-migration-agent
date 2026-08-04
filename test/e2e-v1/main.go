@@ -25,7 +25,6 @@ type configuration struct {
 	AgentImage           string
 	PodmanSocket         string
 	IsoPath              string
-	VcsimModelPath       string // Path to vcsim model directory for -load flag
 	InfraMode            string // "container" or "vm"
 }
 
@@ -65,7 +64,6 @@ func main() {
 	flag.StringVar(&cfg.AgentAPIUrl, "agent-api-url", "https://localhost:8000", "Agent local API url")
 	flag.StringVar(&cfg.PodmanSocket, "podman-socket", "unix:///run/user/1000/podman/podman.sock", "Podman socket path")
 	flag.StringVar(&cfg.IsoPath, "iso-path", "", "Path to directory containing rhcos-live-iso.x86_64.iso")
-	flag.StringVar(&cfg.VcsimModelPath, "vcsim-model-path", "", "Path to vcsim model directory (for -load flag)")
 	flag.Parse()
 
 	logger, err := zap.NewDevelopment()
@@ -83,7 +81,7 @@ func main() {
 
 	switch cfg.InfraMode {
 	case "container":
-		im, err := infra.NewContainerInfraManager(cfg.PodmanSocket, cfg.BackendImage, cfg.AgentImage, cfg.IsoPath, cfg.VcsimModelPath)
+		im, err := infra.NewContainerInfraManager(cfg.PodmanSocket, cfg.BackendImage, cfg.AgentImage, cfg.IsoPath)
 		if err != nil {
 			log.Fatalf("failed to create container infra manager: %v", err)
 		}

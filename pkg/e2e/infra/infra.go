@@ -1,5 +1,7 @@
 package infra
 
+import "github.com/kubev2v/assisted-migration-agent/pkg/e2e/vcsim"
+
 // InfraManager abstracts infrastructure lifecycle for e2e tests.
 // Container-based: starts/stops containers via Podman.
 // VM-based: no-op, infrastructure is managed externally (kind + deploy/e2e.mk).
@@ -13,6 +15,8 @@ type InfraManager interface {
 	StopBackend() error
 	StartVcsim() error
 	StopVcsim() error
+	AddVMs(vms []vcsim.VM) ([]vcsim.VM, error)
+	RemoveVM(name string) error
 	StartAgent(cfg AgentConfig) (string, error)
 	StopAgent() error
 	RestartAgent() error
