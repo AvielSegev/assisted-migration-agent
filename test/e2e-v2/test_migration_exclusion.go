@@ -1,9 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
-	"fmt"
-	"net/http"
 	"time"
 
 	ginkgo "github.com/onsi/ginkgo/v2"
@@ -27,25 +24,6 @@ var _ = ginkgo.Describe("VM Migration Exclusion v2 e2e tests", ginkgo.Ordered, f
 		ginkgo.GinkgoWriter.Println("Starting vcsim...")
 		err = infraManager.StartVcsim()
 		gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to start vcsim")
-
-		client := &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
-		}
-		gm.Eventually(func() error {
-			resp, err := client.Get(infra.VcsimURL)
-			if err != nil {
-				return err
-			}
-			defer func() {
-				_ = resp.Body.Close()
-			}()
-			if resp.StatusCode >= 500 {
-				return fmt.Errorf("server error: %d", resp.StatusCode)
-			}
-			return nil
-		}, 30*time.Second, 1*time.Second).Should(gm.BeNil(), "vcsim did not become ready")
 
 		agentSvc = service.DefaultAgentSvc(cfg.AgentAPIUrl)
 

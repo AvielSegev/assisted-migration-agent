@@ -1,9 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
-	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/kubev2v/assisted-migration-agent/pkg/e2e/infra"
@@ -74,27 +71,6 @@ var _ = ginkgo.Describe("Agent v2 e2e tests", ginkgo.Ordered, func() {
 				ginkgo.GinkgoWriter.Println("Starting vcsim...")
 				err := infraManager.StartVcsim()
 				gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to start vcsim")
-				time.Sleep(1 * time.Second) // allow vcsim to initialize
-
-				client := &http.Client{
-					Transport: &http.Transport{
-						TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-					},
-				}
-
-				gm.Eventually(func() error {
-					resp, err := client.Get(infra.VcsimURL)
-					if err != nil {
-						return err
-					}
-					defer func() {
-						_ = resp.Body.Close()
-					}()
-					if resp.StatusCode >= 500 {
-						return fmt.Errorf("server error: %d", resp.StatusCode)
-					}
-					return nil
-				}, 30*time.Second, 1*time.Second).Should(gm.BeNil())
 
 				agentSvc = service.DefaultAgentSvc(cfg.AgentAPIUrl)
 			})

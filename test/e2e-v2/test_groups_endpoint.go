@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -34,25 +33,6 @@ var _ = ginkgo.Describe("Group endpoint v2 e2e tests", ginkgo.Ordered, func() {
 		ginkgo.GinkgoWriter.Println("Starting vcsim...")
 		err = infraManager.StartVcsim()
 		gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to start vcsim")
-
-		client := &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
-		}
-		gm.Eventually(func() error {
-			resp, err := client.Get(infra.VcsimURL)
-			if err != nil {
-				return err
-			}
-			defer func() {
-				_ = resp.Body.Close()
-			}()
-			if resp.StatusCode >= 500 {
-				return fmt.Errorf("server error: %d", resp.StatusCode)
-			}
-			return nil
-		}, 30*time.Second, 1*time.Second).Should(gm.BeNil(), "vcsim did not become ready")
 
 		agentSvc = service.DefaultAgentSvc(cfg.AgentAPIUrl)
 
@@ -632,25 +612,6 @@ var _ = ginkgo.Describe("Group membership v2 e2e tests", ginkgo.Ordered, func() 
 		ginkgo.GinkgoWriter.Println("Starting vcsim...")
 		err = infraManager.StartVcsim()
 		gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to start vcsim")
-
-		client := &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
-		}
-		gm.Eventually(func() error {
-			resp, err := client.Get(infra.VcsimURL)
-			if err != nil {
-				return err
-			}
-			defer func() {
-				_ = resp.Body.Close()
-			}()
-			if resp.StatusCode >= 500 {
-				return fmt.Errorf("server error: %d", resp.StatusCode)
-			}
-			return nil
-		}, 30*time.Second, 1*time.Second).Should(gm.BeNil(), "vcsim did not become ready")
 
 		agentSvc = service.DefaultAgentSvc(cfg.AgentAPIUrl)
 
