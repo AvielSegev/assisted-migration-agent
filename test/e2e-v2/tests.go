@@ -364,33 +364,32 @@ var _ = ginkgo.Describe("Agent v2 e2e tests", ginkgo.Ordered, func() {
 				gm.Expect(status.Mode).To(gm.Equal("disconnected"), "expected mode to persist as disconnected after restart")
 			})
 
-			// Todo: fix the behaviour so this test pass
-			//// Given an agent started in connected mode
-			//// When the mode is switched to disconnected
-			//// Then the status should report mode "disconnected" with no console errors
-			//ginkgo.It("should switch from connected to disconnected mode without console errors", func() {
-			//	agentID := uuid.NewString()
-			//	_, err := infraManager.StartAgent(infra.AgentConfig{
-			//		AgentID:        agentID,
-			//		SourceID:       uuid.NewString(),
-			//		Mode:           "connected",
-			//		APIVersion:     "v2",
-			//		ConsoleURL:     cfg.AgentProxyUrl,
-			//		UpdateInterval: "1s",
-			//	})
-			//	gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to start agent")
-			//	ginkgo.GinkgoWriter.Printf("Agent started with ID: %s\n", agentID)
-			//
-			//	gm.Eventually(func() error {
-			//		_, err := agentSvc.Status()
-			//		return err
-			//	}, 30*time.Second, 1*time.Second).Should(gm.BeNil())
-			//
-			//	status, err := agentSvc.SetAgentMode("disconnected")
-			//	gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to switch mode")
-			//	gm.Expect(status.Mode).To(gm.Equal("disconnected"), "expected mode to be disconnected")
-			//	gm.Expect(status.Error).To(gm.BeEmpty(), "expected no console errors after switching to disconnected")
-			//})
+			// Given an agent started in connected mode
+			// When the mode is switched to disconnected
+			// Then the status should report mode "disconnected" with no console errors
+			ginkgo.It("should switch from connected to disconnected mode without console errors", func() {
+				agentID := uuid.NewString()
+				_, err := infraManager.StartAgent(infra.AgentConfig{
+					AgentID:        agentID,
+					SourceID:       uuid.NewString(),
+					Mode:           "connected",
+					APIVersion:     "v2",
+					ConsoleURL:     cfg.AgentProxyUrl,
+					UpdateInterval: "1s",
+				})
+				gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to start agent")
+				ginkgo.GinkgoWriter.Printf("Agent started with ID: %s\n", agentID)
+
+				gm.Eventually(func() error {
+					_, err := agentSvc.Status()
+					return err
+				}, 30*time.Second, 1*time.Second).Should(gm.BeNil())
+
+				status, err := agentSvc.SetAgentMode("disconnected")
+				gm.Expect(err).ToNot(gm.HaveOccurred(), "failed to switch mode")
+				gm.Expect(status.Mode).To(gm.Equal("disconnected"), "expected mode to be disconnected")
+				gm.Expect(status.Error).To(gm.BeEmpty(), "expected no console errors after switching to disconnected")
+			})
 		})
 	})
 })

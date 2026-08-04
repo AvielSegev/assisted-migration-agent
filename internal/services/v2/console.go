@@ -129,6 +129,7 @@ func (c *Console) SetMode(ctx context.Context, mode models.AgentMode) error {
 		go c.run(c.close)
 	case models.AgentModeDisconnected:
 		c.state.SetTarget(models.ConsoleStatusDisconnected)
+		c.state.ClearError()
 		zap.S().Debugw("stopping run loop for disconnected mode")
 		if c.close == nil {
 			return nil
