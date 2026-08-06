@@ -72,8 +72,12 @@ RUN mkdir -p /app/policies /app/forklift && \
 # =============================================================================
 FROM --platform=linux/amd64 registry.access.redhat.com/ubi9/ubi AS filler-builder
 
-RUN echo -e '[centos-stream-baseos]\nname=CentOS Stream 9 - BaseOS\nbaseurl=https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/\ngpgcheck=0\nenabled=1' > /etc/yum.repos.d/centos-stream-baseos.repo && \
-    echo -e '[centos-stream-appstream]\nname=CentOS Stream 9 - AppStream\nbaseurl=https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os/\ngpgcheck=0\nenabled=1' > /etc/yum.repos.d/centos-stream-appstream.repo
+# Fetch the CentOS Stream signing key and verify it against a pinned SHA-256 before trusting it
+ARG CENTOS_GPG_KEY_SHA256=146059788b214d7ba0dd70c1cf21111e594c6cfde201da8a9a88fe7101be8a78
+RUN curl -fsSL -o /etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official https://www.centos.org/keys/RPM-GPG-KEY-CentOS-Official && \
+    echo "${CENTOS_GPG_KEY_SHA256}  /etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official" | sha256sum -c - && \
+    echo -e '[centos-stream-baseos]\nname=CentOS Stream 9 - BaseOS\nbaseurl=https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/\ngpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official\nenabled=1' > /etc/yum.repos.d/centos-stream-baseos.repo && \
+    echo -e '[centos-stream-appstream]\nname=CentOS Stream 9 - AppStream\nbaseurl=https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os/\ngpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official\nenabled=1' > /etc/yum.repos.d/centos-stream-appstream.repo
 
 RUN dnf install -y --allowerasing qemu-img libguestfs-tools genisoimage && \
     dnf clean all
@@ -94,9 +98,11 @@ RUN microdnf install -y wget gzip && \
 
 WORKDIR /extensions
 
-# Download sqlite_scanner extension for DuckDB v1.4.3 linux_amd64
+# Download sqlite_scanner extension for DuckDB v1.4.3 linux_amd64, verified against a pinned SHA-256
 ARG DUCKDB_VERSION=v1.4.3
+ARG DUCKDB_SQLITE_SCANNER_SHA256=75ead0bb623cd67c8c7e40d30f96e5fc2823fd3df90eb2ecd289aae177b15820
 RUN wget -q "https://extensions.duckdb.org/${DUCKDB_VERSION}/linux_amd64/sqlite_scanner.duckdb_extension.gz" && \
+    echo "${DUCKDB_SQLITE_SCANNER_SHA256}  sqlite_scanner.duckdb_extension.gz" | sha256sum -c - && \
     gunzip sqlite_scanner.duckdb_extension.gz
 
 # =============================================================================
@@ -104,10 +110,14 @@ RUN wget -q "https://extensions.duckdb.org/${DUCKDB_VERSION}/linux_amd64/sqlite_
 # =============================================================================
 FROM --platform=linux/amd64 registry.access.redhat.com/ubi9/ubi
 
-# Add CentOS Stream 10 repos for virt-v2v and dependencies
-RUN echo -e '[centos-stream-baseos]\nname=CentOS Stream 9 - BaseOS\nbaseurl=https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/\ngpgcheck=0\nenabled=1' > /etc/yum.repos.d/centos-stream-baseos.repo && \
-    echo -e '[centos-stream-appstream]\nname=CentOS Stream 9 - AppStream\nbaseurl=https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os/\ngpgcheck=0\nenabled=1' > /etc/yum.repos.d/centos-stream-appstream.repo && \
-    echo -e '[centos-stream-crb]\nname=CentOS Stream 9 - CRB\nbaseurl=https://mirror.stream.centos.org/9-stream/CRB/x86_64/os/\ngpgcheck=0\nenabled=1' > /etc/yum.repos.d/centos-stream-crb.repo
+# Add CentOS Stream 9 repos for virt-v2v and dependencies
+# Fetch the CentOS Stream signing key and verify it against a pinned SHA-256 before trusting it
+ARG CENTOS_GPG_KEY_SHA256=146059788b214d7ba0dd70c1cf21111e594c6cfde201da8a9a88fe7101be8a78
+RUN curl -fsSL -o /etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official https://www.centos.org/keys/RPM-GPG-KEY-CentOS-Official && \
+    echo "${CENTOS_GPG_KEY_SHA256}  /etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official" | sha256sum -c - && \
+    echo -e '[centos-stream-baseos]\nname=CentOS Stream 9 - BaseOS\nbaseurl=https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/\ngpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official\nenabled=1' > /etc/yum.repos.d/centos-stream-baseos.repo && \
+    echo -e '[centos-stream-appstream]\nname=CentOS Stream 9 - AppStream\nbaseurl=https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os/\ngpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official\nenabled=1' > /etc/yum.repos.d/centos-stream-appstream.repo && \
+    echo -e '[centos-stream-crb]\nname=CentOS Stream 9 - CRB\nbaseurl=https://mirror.stream.centos.org/9-stream/CRB/x86_64/os/\ngpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official\nenabled=1' > /etc/yum.repos.d/centos-stream-crb.repo
 
 RUN dnf install -y ca-certificates tzdata \
     libguestfs \
