@@ -375,6 +375,32 @@ var _ = Describe("Pipeline2", func() {
 			_, pErr := p.Result()
 			Expect(pErr).To(MatchError("work failed"))
 		})
+
+		It("should pass the failed unit result to Finalize, not the previous successful result", func() {
+			finalizeSched := newScheduler(1, 1)
+			defer finalizeSched.Close()
+
+			var finalizeReceived atomic.Int64
+			units := []work.WorkUnit[string, int]{
+				unit("ok", func(_ context.Context, r int) (int, error) { return r + 100, nil }),
+				unit("fail", func(_ context.Context, _ int) (int, error) { return -1, errors.New("disk error") }),
+				unit("never", func(_ context.Context, r int) (int, error) { return r, nil }),
+			}
+
+			p := work.NewPipeline2(finalizeSched, newTestBuilder(
+				func(_ context.Context, result int) error {
+					finalizeReceived.Store(int64(result))
+					return nil
+				}, units...))
+			ticks, err := p.Start()
+			Expect(err).NotTo(HaveOccurred())
+
+			for range ticks {
+			}
+
+			Expect(finalizeReceived.Load()).To(Equal(int64(-1)),
+				"Finalize should receive the failed unit's result (-1), not the previous unit's (100)")
+		})
 	})
 
 	Context("State", func() {

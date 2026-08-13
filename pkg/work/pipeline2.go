@@ -51,7 +51,6 @@ func (p *Pipeline2[S, R]) Start() (chan struct{}, error) {
 	p.ticks = make(chan struct{})
 	p.stop = make(chan struct{})
 	p.done = make(chan struct{})
-	var result R
 
 	stop := p.stop
 	go func(builder WorkBuilder2[S, R]) {
@@ -73,6 +72,7 @@ func (p *Pipeline2[S, R]) Start() (chan struct{}, error) {
 				break loop
 			}
 
+			result, _ := p.progress.getResult()
 			future := p.submit(unit, result)
 
 			select {
@@ -81,28 +81,25 @@ func (p *Pipeline2[S, R]) Start() (chan struct{}, error) {
 				future.Stop()
 				break loop
 			case res := <-future.C():
+				p.progress.setResult(res.Data, res.Err)
 				if res.Err != nil {
-					p.progress.setResult(res.Data, res.Err)
-
 					select {
 					case p.ticks <- struct{}{}:
 					case <-stop:
 					}
 					break loop
 				}
-
-				result = res.Data
-				p.progress.setResult(result, nil)
 			}
 		}
 
+		result, _ := p.progress.getResult()
 		future := p.sched.AddPriorityWork(func(ctx context.Context) (R, error) {
 			return result, builder.Finalize(ctx, result)
 		}, 1)
 
 		res := <-future.C()
 		if res.Err != nil {
-			p.progress.setResult(result, res.Err)
+			p.progress.setResult(res.Data, res.Err)
 		}
 	}(p.workBuilder)
 
