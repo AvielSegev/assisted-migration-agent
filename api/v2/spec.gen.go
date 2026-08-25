@@ -180,6 +180,9 @@ type ServerInterface interface {
 	// Update VirtualMachine properties in the latest collection
 	// (PATCH /virtualmachines/{vmId})
 	UpdateLatestVirtualMachine(c *gin.Context, vmId string)
+	// Cancel deep inspection for a specific VirtualMachine
+	// (DELETE /virtualmachines/{vmId}/inspection)
+	CancelVirtualMachineInspection(c *gin.Context, vmId string)
 	// Get utilization breakdown for a specific VM from the latest collection
 	// (GET /virtualmachines/{vmId}/utilization)
 	GetLatestVMUtilization(c *gin.Context, vmId string)
@@ -1454,6 +1457,30 @@ func (siw *ServerInterfaceWrapper) UpdateLatestVirtualMachine(c *gin.Context) {
 	siw.Handler.UpdateLatestVirtualMachine(c, vmId)
 }
 
+// CancelVirtualMachineInspection operation middleware
+func (siw *ServerInterfaceWrapper) CancelVirtualMachineInspection(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "vmId" -------------
+	var vmId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "vmId", c.Param("vmId"), &vmId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter vmId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.CancelVirtualMachineInspection(c, vmId)
+}
+
 // GetLatestVMUtilization operation middleware
 func (siw *ServerInterfaceWrapper) GetLatestVMUtilization(c *gin.Context) {
 
@@ -1558,6 +1585,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.PATCH(options.BaseURL+"/virtualmachines/labels/:label", wrapper.UpdateLatestLabelVMs)
 	router.GET(options.BaseURL+"/virtualmachines/:vmId", wrapper.GetLatestVirtualMachine)
 	router.PATCH(options.BaseURL+"/virtualmachines/:vmId", wrapper.UpdateLatestVirtualMachine)
+	router.DELETE(options.BaseURL+"/virtualmachines/:vmId/inspection", wrapper.CancelVirtualMachineInspection)
 	router.GET(options.BaseURL+"/virtualmachines/:vmId/utilization", wrapper.GetLatestVMUtilization)
 }
 
@@ -1755,11 +1783,12 @@ var swaggerSpec = []string{
 	"Cl+OB+p1vv6Fqm5tfeH6q25tcwP3199ya1RU4fpXqYn1OCvTXRNr+0tz8FX/P9jrqwn0JmHqVtNbOVY3",
 	"rkRIVv0IeuofJhrKoekh2MsqiOvaCGsJ6I0ZxNRhQNgwhuEFxTAbS9dB/iKNpzE5fY/FfiyXkUProWe1",
 	"QfuHPaePY12migdY53FO5/6ie6GLZB9z/ayL12FXeeLaeJseQoOkzQ/EFo9Q/6ICrkH7ofKnRoLHczc/",
-	"CpdZv3Nt7NIEvm25NLQeo9NK16jK+LNkYi8L/SDFEocJsNrTbmoyPbtZ+5wno1ejA5yRg+WzkVoe2+9r",
-	"x3P2OhdTl/VKMcVzSNXSFTxhHjEPPcdWeX1K1wYK9Z9U3g0PbHxrKPdyHMt6KY1hdIGyr/32f8TBJFV7",
-	"Q/hW9tbaoshuTfTPHFRLhCPOhKkyZu2u3pBNq1jP/jOhLCE6vXGR3I1M4cDDm56jo1yo6tugjXiBxhuJ",
-	"ZuGtffeguo3KYX2GCwEHmeJdzxeckBlEqygBPbxxngbwLT1OgWc0GzV7wqzlV2wah1k87Hdwy2fdDt8+",
-	"f/t/AQAA///YmSG7nhwBAA==",
+	"CpdZv3Nt7NIEvm25dFC6Uro0HpPMUh244mT7QYRVu8Pa1FQwqUJFgHxtc7XzSKvP+0UvA5YJRoT6jqt/",
+	"5pDDNjKMQh4xvxZiXYC0Gd4fVrDTXVvWKNv5s6Zmr4z5QappDjvham//qcn07Gbtc56MXo0OcEYOls9G",
+	"anlsv0Yivrba27IsmMam7luKKZ5Dqpau4Anzyn3ovb7K82S6eFSo/6TysHzgZLCeFC8Jtiyo0xhGV7D7",
+	"2u8gQhxM1r03hO+GaS0+i+zWVKJDtUQ44kyYMnTWMO8N2TSb9uw/E+sUotMbF+rfSCUPvMzqecLKhao+",
+	"HtsIKGk8omkW3joADqrbqBzWZ7gQcJAp3vVEY0JmEK2iBPTwxrsewLeUjIF3VhtFncKs5Zf0GodZPOyY",
+	"cstn/VLfPn/7fwEAAP//4mN47r8eAQA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
