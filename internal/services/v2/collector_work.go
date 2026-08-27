@@ -66,6 +66,9 @@ func newVCenterCollectorWorkFactory(credSrv *CredentialsService, pool *store.Poo
 //  7. Sync with the previous collection — copy groups, labels and exclusions from the previous collection.
 //  8. Inventory — build the inventory JSON with embedded cluster utilization and persist.
 //  9. Publish — write an inventory-update event to the outbox.
+//
+// 10. Add to pool — add the collection DB to the pool and mark as completed. DB is now available for queries.
+// 11. Mark collected — transition status to "collected" only after the DB is in the pool.
 func (f *vCenterCollectorWorkFactory) Build() work.WorkBuilder2[models.CollectorStatus, models.CollectorResult] {
 	log := zap.S().Named("collector_service")
 
@@ -521,7 +524,7 @@ func (f *vCenterCollectorWorkFactory) Build() work.WorkBuilder2[models.Collector
 		// events via ServiceManager.LatestEventService(), which always resolves to this same DB.
 		{
 			Status: func() models.CollectorStatus {
-				return models.CollectorStatus{State: models.CollectorStateCollected}
+				return models.CollectorStatus{State: models.CollectorStateParsing}
 			},
 			Work: func(ctx context.Context, r models.CollectorResult) (models.CollectorResult, error) {
 				st, err := collectionDb.Store()
@@ -566,6 +569,41 @@ func (f *vCenterCollectorWorkFactory) Build() work.WorkBuilder2[models.Collector
 					return r, err
 				}
 
+				return r, nil
+			},
+		},
+		// 10. Add to pool: add the collection DB to the pool and mark as completed.
+		// DB is now available for queries, but status remains "parsing" until the final step.
+		{
+			Status: func() models.CollectorStatus {
+				return models.CollectorStatus{State: models.CollectorStateParsing}
+			},
+			Work: func(ctx context.Context, r models.CollectorResult) (models.CollectorResult, error) {
+				// Get the previous DB before adding the new one
+				prevDB, prevErr := f.pool.Latest()
+
+				// Add the new collection to the pool - DB is now available for queries
+				f.pool.Add(collectionDb)
+
+				// Close the previous DB after adding the new one
+				if prevErr == nil {
+					if err := prevDB.Close(); err != nil {
+						log.Warnw("failed to close previous collection database", "db_id", prevDB.ID, "error", err)
+					}
+				}
+
+				log.Infow("collection database added to pool", "id", collectionDb.ID, "path", collectionDb.Path)
+
+				return r, nil
+			},
+		},
+		// 11. Mark collected: transition status to "collected" now that all work is complete
+		// and the DB is available in the pool.
+		{
+			Status: func() models.CollectorStatus {
+				return models.CollectorStatus{State: models.CollectorStateCollected}
+			},
+			Work: func(ctx context.Context, r models.CollectorResult) (models.CollectorResult, error) {
 				r.Completed = true
 				return r, nil
 			},
@@ -573,6 +611,7 @@ func (f *vCenterCollectorWorkFactory) Build() work.WorkBuilder2[models.Collector
 	}
 
 	finalize := func(ctx context.Context, result models.CollectorResult) error {
+		// Cleanup: logout client, delete collection marker, handle errors and cancellations.
 		if result.Client != nil {
 			_ = result.Client.Logout(context.Background())
 		}
@@ -601,20 +640,11 @@ func (f *vCenterCollectorWorkFactory) Build() work.WorkBuilder2[models.Collector
 
 		switch {
 		case result.Completed:
-			prevDB, prevErr := f.pool.Latest()
-			f.pool.Add(collectionDb)
-
-			// try to close **after** adding new collection to the pool
-			if prevErr == nil {
-				if err := prevDB.Close(); err != nil {
-					zap.S().Warnw("failed to close previous collection database", "db_id", prevDB.ID, "error", err)
-				}
-			}
-
+			// Success: pool.Add already happened in work unit 10, just cleanup the marker
 			if err := mainSt.Collection().Delete(ctx, database); err != nil {
 				zap.S().Warnw("failed to delete collection marker", "error", err)
 			}
-			zap.S().Infow("collection database added to pool", "id", collectionDb.ID, "path", collectionDb.Path)
+			return nil
 		case result.Err != nil:
 			zap.S().Infow("collection failed", "error", result.Err)
 			if err := mainSt.Collection().MarkFailed(ctx, database, result.Err.Error()); err != nil {
@@ -627,6 +657,7 @@ func (f *vCenterCollectorWorkFactory) Build() work.WorkBuilder2[models.Collector
 				}
 			}
 		default:
+			// Cancelled: cleanup the collection DB and marker
 			if collectionDb != nil {
 				_ = collectionDb.Close()
 				if err := os.Remove(collectionDb.Path); err != nil {
