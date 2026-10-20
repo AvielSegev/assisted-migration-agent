@@ -189,14 +189,19 @@ tidy-check: tidy
 GOLANGCI_LINT_VERSION := v2.14.0
 GOLANGCI_LINT := $(GOBIN)/golangci-lint
 
-# Run every time: if installed version != required, remove binary so $(GOLANGCI_LINT) will re-install
+# Reinstall when either the linter version or its build toolchain differs.
+# go install with @version otherwise selects the linter module's Go toolchain,
+# which can be older than the Go version targeted by this project.
 .PHONY: check-golangci-lint-version
 check-golangci-lint-version:
 	@if [ -f '$(GOLANGCI_LINT)' ]; then \
-		installed=$$('$(GOLANGCI_LINT)' version 2>/dev/null | sed -n 's/.*version \([0-9.]*\).*/\1/p' | head -1); \
+		version=$$('$(GOLANGCI_LINT)' version 2>/dev/null); \
+		installed=$$(echo "$$version" | sed -n 's/.*version \([0-9.]*\).*/\1/p' | head -1); \
+		installed_go=$$(echo "$$version" | sed -n 's/.*built with \(go[^ ]*\).*/\1/p' | head -1); \
 		required=$$(echo '$(GOLANGCI_LINT_VERSION)' | sed 's/^v//'); \
-		if [ -n "$$installed" ] && [ "$$installed" != "$$required" ]; then \
-			echo "🔍 Installed golangci-lint $$installed != required $(GOLANGCI_LINT_VERSION), re-installing..."; \
+		required_go=$$(go env GOVERSION) || exit 1; \
+		if [ "$$installed" != "$$required" ] || [ "$$installed_go" != "$$required_go" ]; then \
+			echo "🔍 Re-installing golangci-lint: require $(GOLANGCI_LINT_VERSION) built with $$required_go; found $$installed built with $$installed_go"; \
 			rm -f '$(GOLANGCI_LINT)'; \
 		fi; \
 	fi
@@ -205,7 +210,7 @@ check-golangci-lint-version:
 $(GOLANGCI_LINT):
 	@echo "📦 Installing golangci-lint $(GOLANGCI_LINT_VERSION)..."
 	@mkdir -p $(GOBIN)
-	@GOBIN=$(GOBIN) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+	@GOTOOLCHAIN=$$(go env GOVERSION) GOBIN=$(GOBIN) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 	@echo "✅ 'golangci-lint' installed successfully."
 
 # Run linter
