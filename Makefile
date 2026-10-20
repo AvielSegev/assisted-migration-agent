@@ -165,6 +165,12 @@ build-local:
 		$(MAKE) setup-opa-policies; \
 	fi
 
+run-local: build-local
+	@mkdir -p "$(AGENT_LOCAL_DATA_DIR)"
+	$(BINARY_PATH) run --opa-policies-folder "$(OPA_POLICIES_FOLDER)" \
+		--agent-id "$(AGENT_ID)" --source-id "$(SOURCE_ID)" \
+		--data-folder "$(AGENT_LOCAL_DATA_DIR)" --console-url http://localhost:7443
+
 run.ui:
 	cd $(CURDIR)/ui && npm run start
 
