@@ -283,6 +283,11 @@ func (f *rvtoolsWorkFactory) Build() work.WorkBuilder[models.CollectorStatus, mo
 					return r, r.Err
 				}
 
+				if err := tempStore.Inventory().SetInfrastructureSource(ctx, inv.VCenterID); err != nil {
+					r.Err = fmt.Errorf("recording infrastructure source for %s: %w", file, err)
+					return r, r.Err
+				}
+
 				if err := tempStore.Inventory().SaveSubset(ctx, invBytes); err != nil {
 					r.Err = fmt.Errorf("saving inventory subset for %s: %w", file, err)
 					return r, r.Err

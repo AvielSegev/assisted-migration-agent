@@ -80,6 +80,10 @@ func (c *InventoryService) DeleteVCenterInventory(ctx context.Context, vCenterID
 	parser := duckdb_parser.New(c.store.Querier(), nil)
 
 	return c.store.WithTx(ctx, func(txCtx context.Context) error {
+		if err := c.store.Inventory().DeleteInfrastructure(txCtx, vCenterID.String()); err != nil {
+			return fmt.Errorf("deleting infrastructure for vCenter %s: %w", vCenterID, err)
+		}
+
 		inventoryFilter, err := filter.ParseWithInventoryMap([]byte(expression))
 		if err != nil {
 			return fmt.Errorf("parsing filter expression: %w", err)

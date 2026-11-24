@@ -8,7 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+	"uuid"
 
+	api "github.com/kubev2v/migration-planner/api/v1alpha1"
 	"github.com/kubev2v/migration-planner/pkg/duckdb_parser"
 	"github.com/kubev2v/migration-planner/pkg/opa"
 	. "github.com/onsi/ginkgo/v2"
@@ -332,6 +334,122 @@ var rvtoolsStorageSheets = []rvtoolsSheet{
 }
 
 var _ = Describe("RVTools work", func() {
+	DescribeTable("deletes a vCenter's infrastructure after importing multiple RVTools files",
+		func(retainInfrastructure, legacy bool) {
+			ctx := context.Background()
+			dir := GinkgoT().TempDir()
+			vcenters := []string{"11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222"}
+			var paths []string
+			for n, vcenterID := range vcenters {
+				book := excelize.NewFile()
+				DeferCleanup(book.Close)
+				sheets := []rvtoolsSheet{{
+					name:    "vInfo",
+					headers: []string{"VM ID", "VM", "Cluster", "VI SDK UUID"},
+					row:     []string{fmt.Sprintf("vm-%d", n), fmt.Sprintf("vm%d", n), fmt.Sprintf("cluster%d", n), vcenterID},
+				}}
+				if n == 0 || retainInfrastructure {
+					datastoreName := "shared-name"
+					if legacy {
+						datastoreName = fmt.Sprintf("datastore-%d", n)
+					}
+					sheets = append(sheets,
+						rvtoolsSheet{
+							name:    "vHost",
+							headers: []string{"Datacenter", "Cluster", "# Cores", "# CPU", "Object ID", "# Memory", "Model", "Vendor", "Host", "VI SDK UUID"},
+							row:     []string{"dc1", fmt.Sprintf("cluster%d", n), "8", "2", "host-1", "32768", "ESXi", "VMware", fmt.Sprintf("esxi%d", n), vcenterID},
+						},
+						rvtoolsSheet{
+							name:    "vDatastore",
+							headers: []string{"Hosts", "Address", "Name", "Object ID", "Free MiB", "MHA", "Capacity MiB", "Type"},
+							row:     []string{fmt.Sprintf("esxi%d", n), "naa.001", datastoreName, "datastore-1", "512", "false", "1024", "VMFS"},
+						},
+					)
+				}
+				for _, sheet := range sheets {
+					_, err := book.NewSheet(sheet.name)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(book.SetSheetRow(sheet.name, "A1", &sheet.headers)).To(Succeed())
+					Expect(book.SetSheetRow(sheet.name, "A2", &sheet.row)).To(Succeed())
+				}
+				path := filepath.Join(dir, fmt.Sprintf("rvtools-%d.xlsx", n))
+				Expect(book.SaveAs(path)).To(Succeed())
+				paths = append(paths, path)
+			}
+
+			pool := store.NewPool(time.Minute)
+			DeferCleanup(pool.Close)
+			mainDB, err := pool.NewDatabase(store.MainDatabaseID, filepath.Join(dir, "agent.duckdb"), time.Now(), store.EagerConnectionInitilization, 0, store.ReadWriteDatabase)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(mainDB.Migrate(ctx, migrations.RunMain)).To(Succeed())
+			pool.Add(mainDB)
+			validator, err := opa.NewValidator(map[string]string{"test.rego": "package io.konveyor.forklift.vmware\nconcerns := []"})
+			Expect(err).NotTo(HaveOccurred())
+			factory, err := newRvtoolWorkFactory(pool, paths, false, dir, validator)
+			Expect(err).NotTo(HaveOccurred())
+			builder := factory.Build()
+			var result models.CollectorResult
+			for {
+				stage, ok := builder.Next()
+				if !ok {
+					break
+				}
+				result, err = stage.Work(ctx, result)
+				Expect(err).NotTo(HaveOccurred())
+			}
+			Expect(builder.Finalize(ctx, result)).To(Succeed())
+			collection, err := pool.Latest()
+			Expect(err).NotTo(HaveOccurred())
+			st, err := collection.Store()
+			Expect(err).NotTo(HaveOccurred())
+			initial := 1
+			if retainInfrastructure {
+				initial = 2
+			}
+			for _, table := range []string{"vhost", "vdatastore"} {
+				var count int
+				Expect(st.Querier().QueryRowContext(ctx, "SELECT count(*) FROM "+table).Scan(&count)).To(Succeed())
+				Expect(count).To(Equal(initial), "infrastructure must be imported before deletion")
+			}
+			if legacy {
+				for _, table := range []string{"vhost", "vdatastore", "vhostscsi", "vhba", "vnic"} {
+					_, err := st.Querier().ExecContext(ctx, "UPDATE "+table+" SET source_vcenter_id = NULL")
+					Expect(err).NotTo(HaveOccurred())
+				}
+			}
+			srv := NewInventoryService(st)
+			Expect(srv.DeleteVCenterInventory(ctx, uuid.MustParse(vcenters[0]))).To(Succeed())
+			stored, err := srv.GetAggregatedInventory(ctx)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(stored.VcenterIDs).To(ConsistOf(vcenters[1]))
+			var inventory api.Inventory
+			Expect(json.Unmarshal(stored.Data, &inventory)).To(Succeed())
+			Expect(inventory.Vcenter.Vms.Total).To(Equal(1))
+			expected := 0
+			if retainInfrastructure {
+				expected = 1
+			}
+			Expect(inventory.Vcenter.Infra.TotalHosts).To(Equal(expected))
+			Expect(inventory.Vcenter.Infra.Datastores).To(HaveLen(expected))
+			for _, table := range []string{"vhost", "vdatastore"} {
+				var count int
+				Expect(st.Querier().QueryRowContext(ctx, "SELECT count(*) FROM "+table).Scan(&count)).To(Succeed())
+				Expect(count).To(Equal(expected))
+			}
+
+			Expect(srv.DeleteVCenterInventory(ctx, uuid.MustParse(vcenters[1]))).To(Succeed())
+			stored, err = srv.GetAggregatedInventory(ctx)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(json.Unmarshal(stored.Data, &inventory)).To(Succeed())
+			Expect(inventory.Vcenter.Vms.Total).To(BeZero())
+			Expect(inventory.Vcenter.Infra.TotalHosts).To(BeZero())
+			Expect(inventory.Vcenter.Infra.Datastores).To(BeEmpty())
+		},
+		Entry("when the remaining export contains no hosts or datastores", false, false),
+		Entry("when both exports reuse host IDs and datastore names", true, false),
+		Entry("when legacy source inventories identify datastore ownership", true, true),
+	)
+
 	It("stores host storage collected from the RVTools export", func() {
 		ctx := context.Background()
 		dir := GinkgoT().TempDir()

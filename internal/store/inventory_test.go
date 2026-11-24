@@ -91,6 +91,97 @@ var _ = Describe("InventoryStore", func() {
 		})
 	})
 
+	Context("Infrastructure sources", func() {
+		It("preserves other sources when recording and deleting infrastructure", func() {
+			for _, table := range []string{"vhost", "vdatastore", "vhba", "vhostscsi", "vnic"} {
+				_, err := s.Querier().ExecContext(ctx, "INSERT INTO "+table+" (source_vcenter_id) VALUES ('vc-existing'), (NULL)")
+				Expect(err).NotTo(HaveOccurred())
+			}
+			Expect(s.Inventory().SetInfrastructureSource(ctx, "vc-new")).To(Succeed())
+			Expect(s.Inventory().DeleteInfrastructure(ctx, "vc-new")).To(Succeed())
+			for _, table := range []string{"vhost", "vdatastore", "vhba", "vhostscsi", "vnic"} {
+				var owner string
+				Expect(s.Querier().QueryRowContext(ctx, "SELECT source_vcenter_id FROM "+table).Scan(&owner)).To(Succeed())
+				Expect(owner).To(Equal("vc-existing"))
+				var count int
+				Expect(s.Querier().QueryRowContext(ctx, "SELECT count(*) FROM "+table).Scan(&count)).To(Succeed())
+				Expect(count).To(Equal(1))
+			}
+		})
+
+		DescribeTable("preserves ambiguous legacy datastore ownership",
+			func(secondName string) {
+				Expect(s.Inventory().SaveSubset(ctx, []byte(`{"vcenter_id":"vc-one","vcenter":{"infra":{"hosts":[{"id":"host-1"}],"datastores":[{"diskId":"shared"}]}}}`))).To(Succeed())
+				Expect(s.Inventory().SaveSubset(ctx, []byte(`{"vcenter_id":"vc-two","vcenter":{"infra":{"hosts":[],"datastores":[{"diskId":"`+secondName+`"}]}}}`))).To(Succeed())
+				_, err := s.Querier().ExecContext(ctx, `
+					INSERT INTO vhost ("Host", "Object ID", "VI SDK UUID") VALUES ('esxi-shared', 'host-1', 'vc-one');
+					INSERT INTO vdatastore ("Name", "Hosts") VALUES ('shared', 'esxi-shared'), ('shared', NULL);
+				`)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(s.Inventory().DeleteInfrastructure(ctx, "vc-one")).To(Succeed())
+				var count int
+				Expect(s.Querier().QueryRowContext(ctx, "SELECT count(*) FROM vdatastore").Scan(&count)).To(Succeed())
+				Expect(count).To(Equal(2), "an absent host sheet cannot establish datastore ownership")
+
+				Expect(s.Inventory().Delete(ctx, sq.Eq{"id": "vc-one"})).To(Succeed())
+				Expect(s.Inventory().SaveSubset(ctx, []byte(`{"vcenter_id":"vc-third"}`))).To(Succeed())
+				Expect(s.Inventory().DeleteInfrastructure(ctx, "vc-two")).To(Succeed())
+				Expect(s.Querier().QueryRowContext(ctx, "SELECT count(*) FROM vdatastore").Scan(&count)).To(Succeed())
+				Expect(count).To(Equal(2), "removing a source must not turn missing evidence into ownership")
+			},
+			Entry("when another source has the same name but no host sheet", "shared"),
+			Entry("when raw rows outnumber the saved source snapshot", "other"),
+		)
+
+		It("preserves legacy host metadata without recorded source ownership", func() {
+			Expect(s.Inventory().SaveSubset(ctx, []byte(`{"vcenter_id":"vc-one"}`))).To(Succeed())
+			Expect(s.Inventory().SaveSubset(ctx, []byte(`{"vcenter_id":"vc-two"}`))).To(Succeed())
+			_, err := s.Querier().ExecContext(ctx, `INSERT INTO vhost ("Object ID", "VI SDK UUID") VALUES ('host-1', 'vc-one')`)
+			Expect(err).NotTo(HaveOccurred())
+			for _, table := range []string{"vhba", "vhostscsi", "vnic"} {
+				_, err := s.Querier().ExecContext(ctx, "INSERT INTO "+table+` ("Host ID") VALUES ('host-1'), ('host-1')`)
+				Expect(err).NotTo(HaveOccurred())
+			}
+			Expect(s.Inventory().DeleteInfrastructure(ctx, "vc-one")).To(Succeed())
+			for _, table := range []string{"vhba", "vhostscsi", "vnic"} {
+				var count int
+				Expect(s.Querier().QueryRowContext(ctx, "SELECT count(*) FROM "+table).Scan(&count)).To(Succeed())
+				Expect(count).To(Equal(2))
+			}
+		})
+
+		It("deletes infrastructure when an old collection has no NIC table", func() {
+			_, err := s.Querier().ExecContext(ctx, `
+				DROP TABLE vnic;
+				INSERT INTO vhost (source_vcenter_id) VALUES ('vc-one');
+			`)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(s.Inventory().DeleteInfrastructure(ctx, "vc-one")).To(Succeed())
+			var count int
+			Expect(s.Querier().QueryRowContext(ctx, "SELECT count(*) FROM vhost").Scan(&count)).To(Succeed())
+			Expect(count).To(BeZero())
+		})
+
+		It("rolls infrastructure deletion back with its transaction", func() {
+			for _, table := range []string{"vhost", "vdatastore", "vhba", "vhostscsi", "vnic"} {
+				_, err := s.Querier().ExecContext(ctx, "INSERT INTO "+table+" (source_vcenter_id) VALUES ('vc-one')")
+				Expect(err).NotTo(HaveOccurred())
+			}
+			err := s.WithTx(ctx, func(txCtx context.Context) error {
+				if err := s.Inventory().DeleteInfrastructure(txCtx, "vc-one"); err != nil {
+					return err
+				}
+				return context.Canceled
+			})
+			Expect(err).To(MatchError(context.Canceled))
+			for _, table := range []string{"vhost", "vdatastore", "vhba", "vhostscsi", "vnic"} {
+				var count int
+				Expect(s.Querier().QueryRowContext(ctx, "SELECT count(*) FROM "+table).Scan(&count)).To(Succeed())
+				Expect(count).To(Equal(1))
+			}
+		})
+	})
+
 	Context("Save", func() {
 		// Given inventory data with a vCenter ID
 		// When we save the main inventory

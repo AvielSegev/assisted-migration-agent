@@ -242,7 +242,7 @@ var _ = Describe("Host export", func() {
 			_, err := st.Querier().ExecContext(ctx, `
 				ALTER TABLE vhost DROP COLUMN "CPU Model";
 				ALTER TABLE vhost DROP COLUMN "Serial Number";
-				DELETE FROM collection_schema_migrations WHERE version = 4;
+				DELETE FROM collection_schema_migrations WHERE version >= 4;
 			`)
 			Expect(err).NotTo(HaveOccurred())
 

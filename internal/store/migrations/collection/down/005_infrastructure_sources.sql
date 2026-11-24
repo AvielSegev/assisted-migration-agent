@@ -1,0 +1,5 @@
+ALTER TABLE IF EXISTS vhostscsi DROP COLUMN IF EXISTS source_vcenter_id;
+ALTER TABLE IF EXISTS vhba DROP COLUMN IF EXISTS source_vcenter_id;
+ALTER TABLE IF EXISTS vnic DROP COLUMN IF EXISTS source_vcenter_id;
+ALTER TABLE IF EXISTS vdatastore DROP COLUMN IF EXISTS source_vcenter_id;
+ALTER TABLE IF EXISTS vhost DROP COLUMN IF EXISTS source_vcenter_id;

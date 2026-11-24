@@ -259,3 +259,39 @@ var _ = Describe("RDM LUN UUID collection migration", func() {
 		Expect(uuid.String).To(Equal("collected-lun-uuid"))
 	})
 })
+
+var _ = Describe("Infrastructure source migration", func() {
+	It("preserves raw inventory across rollback and reapplication", func() {
+		ctx := context.Background()
+		db, err := sql.Open("duckdb", "")
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(db.Close)
+		Expect(duckdb_parser.New(db, nil).Init()).To(Succeed())
+		_, err = db.ExecContext(ctx, `
+			INSERT INTO vhost ("Object ID") VALUES ('host-1');
+			INSERT INTO vdatastore ("Name") VALUES ('datastore-1');
+			INSERT INTO vhba ("Host ID") VALUES ('host-1');
+			INSERT INTO vhostscsi ("Host ID") VALUES ('host-1');
+			INSERT INTO vnic ("Host ID") VALUES ('host-1');
+		`)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(migrations.RunCollection(ctx, db, "memory")).To(Succeed())
+		for _, table := range []string{"vhost", "vdatastore", "vhba", "vhostscsi", "vnic"} {
+			var source sql.NullString
+			Expect(db.QueryRowContext(ctx, "SELECT source_vcenter_id FROM "+table).Scan(&source)).To(Succeed())
+			Expect(source.Valid).To(BeFalse())
+		}
+		down, err := os.ReadFile("collection/down/005_infrastructure_sources.sql")
+		Expect(err).NotTo(HaveOccurred())
+		_, err = db.ExecContext(ctx, string(down))
+		Expect(err).NotTo(HaveOccurred())
+		_, err = db.ExecContext(ctx, `DELETE FROM collection_schema_migrations WHERE version = 5`)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(migrations.RunCollection(ctx, db, "memory")).To(Succeed())
+		for _, table := range []string{"vhost", "vdatastore", "vhba", "vhostscsi", "vnic"} {
+			var count int
+			Expect(db.QueryRowContext(ctx, "SELECT count(*) FROM "+table).Scan(&count)).To(Succeed())
+			Expect(count).To(Equal(1))
+		}
+	})
+})
